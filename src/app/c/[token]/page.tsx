@@ -33,7 +33,13 @@ const carregar = cache(async (token: string) => {
   for (const campos of CAMPOS_POUSADA) {
     const sel: string = `id, titular, telefone, check_in, check_out, adultos, criancas, pousadas(${campos}), unidades(nome)`;
     const res = await db.from("reservas").select(sel).eq("token", token).maybeSingle();
-    if (!res.error) return res.data as unknown as ReservaHospede | null;
+    if (!res.error) {
+      if (!res.data) return null;
+      // reserva cancelada no painel: o link deixa de funcionar (sem a migração 0007, a consulta falha e segue normal)
+      const canc = await db.from("reservas").select("cancelada_em").eq("token", token).maybeSingle();
+      if (!canc.error && (canc.data as { cancelada_em: string | null } | null)?.cancelada_em) return null;
+      return res.data as unknown as ReservaHospede;
+    }
   }
   return null;
 });

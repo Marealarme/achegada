@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { sessaoEquipe } from "@/lib/sessao";
+import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import Cabecalho from "./Cabecalho";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
-import { cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
+import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { BotoesMensagem, ImportarHotelLink, NovaReserva } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
@@ -47,13 +47,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const pousadaNome = sessao.pousada.nome;
 
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // horário de Brasília
-  const buscar = (campos: string) =>
-    db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
-  const [primeira, { data: unidades }] = await Promise.all([
-    buscar(`${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`),
+  const buscar = (campos: string, semCanceladas = false) => {
+    const q = db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
+    return semCanceladas ? q.is("cancelada_em", null) : q;
+  };
+  const COMPLETO = `${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
+  const [comFiltro, { data: unidades }] = await Promise.all([
+    buscar(COMPLETO, true),
     db.from("unidades").select("id, nome").order("nome"),
   ]);
-  // se a migração 0002 ainda não rodou, a coluna link_enviado_em não existe: busca sem ela
+  // migração 0007 ainda não rodou: busca sem esconder as canceladas
+  const primeira = comFiltro.error ? await buscar(COMPLETO) : comFiltro;
   let lista = primeira.data;
   if (primeira.error) {
     // migrações 0002/0004 ainda não rodaram: busca só o que existe
@@ -146,6 +150,18 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         ) : (
           <p className="empty">O hóspede ainda não fez a pré-chegada. Envie o link pelo WhatsApp; se precisar, reenvie na véspera.</p>
         )}
+        {!p && atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
+        {!atual.checkin_em && (
+          <details className="cancelar">
+            <summary>Cancelar esta reserva</summary>
+            <p className="muted small">
+              O card sai da lista e o link do hóspede para de funcionar.
+              {atual.fnrh_status === "enviado" ? " A ficha que já foi ao governo também é cancelada." : ""}
+              {p ? " O cadastro dos hóspedes continua guardado." : ""}
+            </p>
+            <form action={cancelarCard}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn perigo" aguardando="Cancelando…">Sim, cancelar a reserva</BotaoAcao></form>
+          </details>
+        )}
       </section>
     );
   };
@@ -161,7 +177,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
 
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><ImportarHotelLink /><NovaReserva unidades={unidades ?? []} /></div></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{podeConfigurar(sessao) && <a className="btn ghost" href="/painel/exportar" download>Baixar hóspedes (Excel)</a>}<ImportarHotelLink /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar do Hotel Link” para trazer as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (

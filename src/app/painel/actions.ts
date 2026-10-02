@@ -122,6 +122,48 @@ export async function cancelarFicha(form: FormData) {
   revalidatePath("/painel");
 }
 
+/**
+ * Cancela o card da reserva: se a ficha já foi ao governo, cancela lá primeiro.
+ * O card some da lista; o cadastro dos hóspedes (se já fizeram o check-in) continua guardado.
+ */
+export async function cancelarCard(form: FormData) {
+  const id = String(form.get("id") ?? "");
+  const db = await supabaseEquipe();
+  const { data: auth } = await db.auth.getUser();
+  const { data } = await db.from("reservas").select("id, pousada_id, fnrh_reserva_id, checkin_em").eq("id", id).maybeSingle();
+  const reserva = data as { id: string; pousada_id: string; fnrh_reserva_id: string | null; checkin_em: string | null } | null;
+  if (!reserva || !auth.user) return;
+  if (reserva.checkin_em) {
+    await db.from("reservas").update({ fnrh_erro: "Este hóspede já chegou: registre a saída em vez de cancelar." }).eq("id", reserva.id);
+    revalidatePath("/painel");
+    return;
+  }
+  if (reserva.fnrh_reserva_id) {
+    try {
+      await cancelarReserva(reserva.pousada_id, reserva.fnrh_reserva_id);
+    } catch (e) {
+      await db.from("reservas").update({
+        fnrh_erro: `A reserva não foi cancelada porque a ficha do governo não pôde ser cancelada: ${e instanceof ErroFnrh ? e.message : "sem resposta"}. Tente de novo.`,
+      }).eq("id", reserva.id);
+      revalidatePath("/painel");
+      return;
+    }
+  }
+  const { error } = await db.from("reservas").update({
+    cancelada_em: new Date().toISOString(), cancelada_por: auth.user.id,
+    ...(reserva.fnrh_reserva_id ? { fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false } : {}),
+  }).eq("id", reserva.id);
+  if (error) {
+    await db.from("reservas").update({ fnrh_erro: "Para cancelar reservas, rode a migração 0007 no Supabase." }).eq("id", reserva.id);
+    revalidatePath("/painel");
+    return;
+  }
+  // pacote da ficha que ainda não foi ao governo: não precisa mais ficar guardado
+  await supabaseServico().from("fnrh_envios").delete().eq("reserva_id", reserva.id).eq("pousada_id", reserva.pousada_id);
+  revalidatePath("/painel");
+  redirect("/painel");
+}
+
 // ---------- Importação da lista de reservas do Hotel Link ----------
 export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[] };
 
@@ -159,14 +201,30 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
 
   const refs = reservas.map((r) => r.referencia);
   const { data: existentes, error: errExist } = await db.from("reservas")
-    .select("id, referencia_externa, pre_chegadas(id)").eq("pousada_id", pousadaId).in("referencia_externa", refs.length ? refs : ["-"]);
-  if (errExist) return { ok: false, mensagem: "O banco ainda não está pronto para a importação. Rode a migração 0005 no Supabase." };
-  const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as { id: string; pre_chegadas: unknown }]));
+    .select("id, referencia_externa, cancelada_em, checkin_em, fnrh_reserva_id, pre_chegadas(id)").eq("pousada_id", pousadaId).in("referencia_externa", refs.length ? refs : ["-"]);
+  if (errExist) return { ok: false, mensagem: "O banco ainda não está pronto para a importação. Rode as migrações 0005 e 0007 no Supabase." };
+  type Existente = { id: string; pre_chegadas: unknown; cancelada_em: string | null; checkin_em: string | null; fnrh_reserva_id: string | null };
+  const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as unknown as Existente]));
 
-  let criadas = 0, atualizadas = 0;
+  let criadas = 0, atualizadas = 0, canceladas = 0;
   const ignoradas: string[] = [];
   for (const r of reservas) {
     const quem = r.titular || r.referencia;
+    const atualCard = porRef.get(r.referencia);
+    if (atualCard?.cancelada_em) { ignoradas.push(`${quem}: card cancelado no painel (mantido cancelado)`); continue; }
+    if (/cancel/i.test(r.status) && atualCard && !atualCard.checkin_em) {
+      // cancelada no Hotel Link: cancela o card (e a ficha no governo, se já tinha ido)
+      if (atualCard.fnrh_reserva_id) {
+        try { await cancelarReserva(pousadaId, atualCard.fnrh_reserva_id); }
+        catch { ignoradas.push(`${quem}: cancelada no Hotel Link, mas a ficha do governo não pôde ser cancelada (cancele pelo card)`); continue; }
+      }
+      const { error } = await db.from("reservas").update({
+        cancelada_em: new Date().toISOString(), cancelada_por: auth.user.id,
+        ...(atualCard.fnrh_reserva_id ? { fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false } : {}),
+      }).eq("id", atualCard.id);
+      if (!error) { canceladas++; await db.from("fnrh_envios").delete().eq("reserva_id", atualCard.id); }
+      continue;
+    }
     if (!/confirm/i.test(r.status)) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
     if (r.checkOut < hoje) { ignoradas.push(`${quem}: estadia já terminou`); continue; }
     if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
@@ -197,6 +255,7 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
 
   revalidatePath("/painel");
   const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
+  if (canceladas) partes.push(`${canceladas} cancelada(s) no Hotel Link`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
   return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.`, detalhes: ignoradas };
 }

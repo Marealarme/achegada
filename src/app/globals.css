@@ -216,3 +216,8 @@ textarea { width: 100%; min-width: 0; font: 400 .95rem var(--body); color: var(-
 .lp-top .brand { flex-wrap: wrap; }
 @media (max-width: 640px) { .lp-top .selo-inn { display: none; } }
 .logo-pousada { border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; border: 1px solid var(--line); }
+/* Cancelar reserva (fica no fim do detalhe, recolhido) */
+.cancelar { border-top: 1px dashed var(--line); padding-top: 12px; margin-top: 4px; }
+.cancelar summary { cursor: pointer; color: #A23B2A; font-weight: 600; font-size: .9rem; width: fit-content; }
+.cancelar[open] { display: grid; gap: 10px; }
+.btn.perigo { background: #A23B2A; border-color: #A23B2A; color: #fff; }

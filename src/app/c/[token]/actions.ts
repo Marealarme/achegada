@@ -35,6 +35,8 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   let { data: reserva } = (await db.from("reservas").select("id, pousada_id, check_in, check_out, ota_referencia").eq("token", token).maybeSingle()) as { data: R | null };
   if (!reserva) ({ data: reserva } = (await db.from("reservas").select("id, pousada_id, check_in, check_out").eq("token", token).maybeSingle()) as { data: R | null });
   if (!reserva) return { ok: false, erro: "Link inválido. Peça um novo link à recepção." };
+  const canc = await db.from("reservas").select("cancelada_em").eq("id", reserva.id).maybeSingle();
+  if (!canc.error && (canc.data as { cancelada_em: string | null } | null)?.cancelada_em) return { ok: false, erro: "Esta reserva foi cancelada. Fale com a pousada." };
   if (Date.parse(reserva.check_out) + 2 * 864e5 < Date.now()) return { ok: false, erro: "Este link expirou." };
 
   const { data: jaFeito } = await db.from("pre_chegadas").select("id").eq("reserva_id", reserva.id).maybeSingle();
