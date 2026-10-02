@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Termos de uso e política de privacidade" };
 
-// Dados da empresa: complete os campos entre colchetes antes da primeira venda.
+// Dados da empresa conforme o cartão CNPJ.
 const EMPRESA = "Inn Expert Assessoria Ltda";
 const MARCA = "Inn Experts";
 const CNPJ = "61.722.517/0001-89";
-const ENDERECO = "[endereço completo da sede]";
-const EMAIL = "[e-mail de contato]";
+const ENDERECO = "Rua Colombo, 364, Maresias, São Sebastião/SP, CEP 11628-296";
+const EMAIL = "contato@luachales.com.br";
 const WHATS = "(19) 99759-4522";
-const ENCARREGADO = "[nome do encarregado de dados]";
+const ENCARREGADO = "Marcello Hellmeister Pedrosa";
 const FORO = "São Sebastião/SP";
 
 export default function Termos() {
