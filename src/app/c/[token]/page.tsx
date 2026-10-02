@@ -8,7 +8,20 @@ import { fnrhLigada } from "@/lib/fnrh/cliente";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-export const metadata: Metadata = { title: "Check-in online", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: { absolute: "Check-in online · Lua Chalés" },
+  description: "Faça seu check-in online e chegue direto para o descanso em Maresias.",
+  robots: { index: false, follow: false },
+  icons: { icon: "/logo-lua.png", apple: "/apple-touch-icon.png" },
+  openGraph: {
+    title: "Check-in online · Lua Chalés",
+    description: "Faça seu check-in online e chegue direto para o descanso em Maresias.",
+    siteName: "Lua Chalés",
+    locale: "pt_BR",
+    type: "website",
+    images: [{ url: "/og-lua.png", width: 1200, height: 630, alt: "Lua Chalés Maresias" }],
+  },
+};
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -39,7 +52,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
     <main className="guest">
       <article className="phone">
         <header className="hero">
-          <span className="moon" aria-hidden="true" />
+          <img className="logo-hero" src="/logo-lua.png" alt="" width={64} height={64} />
           <small>{pousada.nome} · Maresias</small>
           <h1>{pre ? "Tudo pronto" : "Check-in online"}</h1>
           <p>

@@ -121,3 +121,5 @@ input[type=text], input[type=tel], input[type=email], input[type=password], inpu
 .item.aberto { background: var(--surface-2); padding-bottom: 6px; margin-block: 4px; }
 .item.aberto > .row { background: var(--accent-soft); }
 .detalhe { display: grid; gap: 14px; padding: 14px 12px 8px; min-width: 0; }
+.logo-hero { position: absolute; right: 16px; top: 16px; width: 64px; height: 64px; border-radius: 50%; background: #fff; padding: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.hero small, .hero h1, .hero p { padding-right: 76px; }
