@@ -12,12 +12,15 @@ export default async function Page({ params }: { params: Promise<{ token: string
   if (!/^[a-f0-9]{24}$/.test(token)) notFound();
 
   const db = supabaseServico();
-  const buscar = (camposPousada: string) =>
-    db
-      .from("reservas")
-      .select(`id, titular, check_in, check_out, adultos, criancas, pousadas(${camposPousada}), unidades(nome)`)
-      .eq("token", token)
-      .maybeSingle();
+  type ReservaHospede = {
+    id: string; titular: string; check_in: string; check_out: string; adultos: number; criancas: number;
+    pousadas: unknown; unidades: unknown;
+  };
+  const buscar = async (camposPousada: string) => {
+    const campos: string = `id, titular, check_in, check_out, adultos, criancas, pousadas(${camposPousada}), unidades(nome)`;
+    const res = await db.from("reservas").select(campos).eq("token", token).maybeSingle();
+    return { data: res.data as unknown as ReservaHospede | null, error: res.error };
+  };
   // se a migração 0003 ainda não rodou, a coluna politica_cancelamento não existe: busca sem ela
   let consulta = await buscar("nome, regras_da_casa, termo_pet, politica_cancelamento");
   if (consulta.error) consulta = await buscar("nome, regras_da_casa, termo_pet");
