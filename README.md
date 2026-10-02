@@ -29,7 +29,7 @@ npm run dev
 - Fase 2: integração com a API FNRH v2 (`src/lib/fnrh/`).
 - Leitura de documento por foto (OCR), sem guardar a imagem.
 
-## Domínio: achegada.marealarme.com.br
+## Domínio: achegada.marealarme.com.br (Vercel: projeto achegada)
 1. Vercel → projeto → Settings → Domains → adicionar `achegada.marealarme.com.br`. A Vercel mostra o valor do CNAME.
 2. Hostinger → Domínios → marealarme.com.br → DNS / Nameservers → adicionar registro:
    - Tipo: `CNAME` · Nome: `achegada` · Aponta para: o valor mostrado pela Vercel · TTL: padrão
