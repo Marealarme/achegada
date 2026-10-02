@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
-import { ehOta, lerExportacaoHotelLink } from "@/lib/hotellink";
+import { ehOta, lerArquivoHotelLink } from "@/lib/hotellink";
 import { cancelarReserva, checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
 import { processarEnvio } from "@/lib/fnrh/envio";
 
@@ -136,7 +136,7 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
   if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, mensagem: "Escolha o arquivo exportado do Hotel Link." };
   if (arquivo.size > 3_000_000) return { ok: false, mensagem: "Arquivo grande demais. Exporte só as próximas semanas." };
 
-  const { reservas, erro } = lerExportacaoHotelLink(await arquivo.text());
+  const { reservas, erro } = lerArquivoHotelLink(new Uint8Array(await arquivo.arrayBuffer()));
   if (erro) return { ok: false, mensagem: erro };
 
   const db = supabaseServico(); // só após confirmar a pousada de quem está logado

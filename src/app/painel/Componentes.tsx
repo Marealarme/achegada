@@ -71,9 +71,9 @@ export function ImportarHotelLink() {
   return (
     <form action={acao} className="newform" style={{ width: "100%" }}>
       <div className="field">
-        <label htmlFor="arquivo">Arquivo de reservas do Hotel Link (.xls)</label>
-        <input id="arquivo" name="arquivo" type="file" accept=".xls,.xml,application/vnd.ms-excel" required />
-        <span className="hint">No Hotel Link: Reservas → exportar lista. Envie o arquivo como baixou, sem abrir no Excel. Reservas já importadas não duplicam.</span>
+        <label htmlFor="arquivo">Arquivo de reservas do Hotel Link</label>
+        <input id="arquivo" name="arquivo" type="file" required />
+        <span className="hint">No Hotel Link: Reservas → exportar lista. Aceita o arquivo como baixou ou depois de aberto no Excel/Numbers. Reservas já importadas não duplicam.</span>
       </div>
       {res && <p className={res.ok ? "" : "err"} role="status">{res.mensagem}</p>}
       {res?.detalhes && res.detalhes.length > 0 && (

@@ -1,3 +1,5 @@
+import * as XLSX from "xlsx";
+
 // Leitura da exportação de reservas do Hotel Link (arquivo .xls no formato "XML Spreadsheet 2003").
 
 export type ReservaHL = {
@@ -55,13 +57,38 @@ export function quartoHL(s: string): string {
 
 export const ehOta = (origem: string) => OTAS.some((o) => origem.toLowerCase().includes(o));
 
+/** Lê o arquivo do Hotel Link em qualquer formato: .xls original (XML), ou aberto e salvo no Excel/Numbers (.xlsx/.numbers exportado). */
+export function lerArquivoHotelLink(bytes: Uint8Array): { reservas: ReservaHL[]; erro?: string } {
+  const comeco = new TextDecoder("utf-8").decode(bytes.slice(0, 400));
+  if (/<\?xml|<Workbook/i.test(comeco)) return lerExportacaoHotelLink(new TextDecoder("utf-8").decode(bytes));
+  let linhas: string[][];
+  try {
+    const wb = XLSX.read(bytes, { type: "array", cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    linhas = (XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" }) as unknown[][]).map((r) => r.map((c) => String(c ?? "")));
+  } catch {
+    return { reservas: [], erro: "Não consegui abrir este arquivo. Exporte de novo no Hotel Link e envie o arquivo .xls." };
+  }
+  // Caso comum: o .xls foi aberto no Numbers/Excel e o XML virou texto espalhado nas células
+  const juntado = linhas.flat().filter(Boolean).join("\n");
+  if (/<Workbook/i.test(juntado)) return lerExportacaoHotelLink(juntado);
+  return lerTabela(linhas);
+}
+
 export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[]; erro?: string } {
   if (!/<Workbook/i.test(conteudo) || !/<Row/i.test(conteudo))
-    return { reservas: [], erro: "Este arquivo não parece a exportação de reservas do Hotel Link. Exporte de novo e envie sem abrir no Excel." };
+    return { reservas: [], erro: "Este arquivo não parece a exportação de reservas do Hotel Link." };
   const linhas = [...conteudo.matchAll(/<Row[^>]*>([\s\S]*?)<\/Row>/g)].map((m) =>
     [...m[1].matchAll(/<Data[^>]*>([\s\S]*?)<\/Data>/g)].map((d) => texto(d[1]))
   );
-  const cab = linhas[0] ?? [];
+  return lerTabela(linhas);
+}
+
+function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } {
+  const inicio = todas.findIndex((l) => l.some((c) => /^refer[eê]ncia/i.test(c.trim())));
+  if (inicio < 0) return { reservas: [], erro: "Não encontrei as colunas da lista de reservas. Confira se é a lista de reservas do Hotel Link." };
+  const cab = todas[inicio].map((c) => c.trim());
+  const linhas = todas.slice(inicio);
   const col = (nome: string) => cab.findIndex((c) => c.toLowerCase().startsWith(nome.toLowerCase()));
   const i = {
     ref: col("Referência"), ota: col("OTA Refer"), hospede: col("Hóspede"), tel: col("Número de Telefone"), origem: col("Origem"),
@@ -72,12 +99,11 @@ export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[
 
   const reservas: ReservaHL[] = [];
   for (const c of linhas.slice(1)) {
-    if (c.length < cab.length - 2) continue; // linhas de resumo no fim do arquivo
     const checkIn = dataHL(c[i.entrada] ?? "");
     const checkOut = dataHL(c[i.saida] ?? "");
     const referencia = (c[i.ref] ?? "").trim();
-    if (!referencia || !checkIn || !checkOut) continue;
-    const limpo = (v: string | undefined) => (v && v !== "-" ? v.trim() : "");
+    if (!referencia || !checkIn || !checkOut) continue; // pula linhas de resumo e vazias
+    const limpo = (v: string | undefined) => (v && v.trim() !== "-" ? v.trim() : "");
     reservas.push({
       referencia,
       otaReferencia: limpo(c[i.ota]),
@@ -91,5 +117,6 @@ export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[
       ...hospedesHL(c[i.pessoas] ?? ""),
     });
   }
+  if (!reservas.length) return { reservas, erro: "Não encontrei nenhuma reserva neste arquivo." };
   return { reservas };
 }
