@@ -16,14 +16,21 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
 
   await db.from("reservas").update({ fnrh_status: "enviando", fnrh_erro: null }).eq("id", reservaId);
   try {
-    const { reservaId: idGoverno } = await registrarHospedagem(normalizar(fila.payload as PayloadHospedagem, reservaId));
+    const pacote = normalizar(fila.payload as PayloadHospedagem, reservaId);
+    let idGoverno: string;
+    try {
+      ({ reservaId: idGoverno } = await registrarHospedagem(pacote));
+    } catch (e) {
+      if (!(e instanceof ErroFnrh) || e.status !== 400 || !/situa[cç][aã]o/i.test(e.message)) throw e;
+      ({ reservaId: idGoverno } = await registrarHospedagem(comoPendente(pacote)));
+    }
     const agora = new Date().toISOString();
     await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: null, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);
     await db.from("hospedes_reserva").update({ status_fnrh: "concluido" }).eq("reserva_id", reservaId);
     await db.from("fnrh_envios").update({ payload: null, enviado_em: agora, ultimo_erro: null, tentativas: fila.tentativas + 1 }).eq("reserva_id", reservaId);
     return { ok: true };
   } catch (e) {
-    const msg = e instanceof ErroFnrh ? e.message : "Erro inesperado ao enviar a ficha.";
+    const msg = mascarar(e instanceof ErroFnrh ? e.message : "Erro inesperado ao enviar a ficha.");
     await db.from("reservas").update({ fnrh_status: "erro", fnrh_erro: msg }).eq("id", reservaId);
     await db.from("hospedes_reserva").update({ status_fnrh: "erro" }).eq("reserva_id", reservaId);
     await db.from("fnrh_envios").update({ ultimo_erro: msg, tentativas: fila.tentativas + 1 }).eq("reserva_id", reservaId);
@@ -38,9 +45,22 @@ export const numeroReserva = (id: string) => "LC" + id.replace(/-/g, "").slice(0
 function normalizar(p: PayloadHospedagem, reservaId: string): PayloadHospedagem {
   return {
     reserva: { ...p.reserva, numero_reserva: numeroReserva(reservaId) },
-    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({ ...h, situacao_hospede: "PRECHECKIN_PENDENTE" })),
+    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({ ...h, situacao_hospede: "PRECHECKIN_REALIZADO" })),
   };
 }
+
+/** Plano B: situação "pendente" não aceita motivo/transporte, então vão vazios. */
+function comoPendente(p: PayloadHospedagem): PayloadHospedagem {
+  return {
+    ...p,
+    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({
+      ...h, situacao_hospede: "PRECHECKIN_PENDENTE", dados_ficha: { motivo_viagem_id: "", meio_transporte_id: "" },
+    })),
+  };
+}
+
+/** Esconde CPFs que o governo devolve nas mensagens de erro. */
+const mascarar = (t: string) => t.replace(/\b(\d{3})\d{5}(\d{3})\b/g, "$1*****$2");
 
 const idade = (nasc: string, ref: string) => {
   const [a, m, d] = nasc.split("-").map(Number);
@@ -87,7 +107,7 @@ export function montarPayload(args: {
       const menor = idade(p.nascimento, args.checkIn) < 18;
       return {
         is_principal: i === 0,
-        situacao_hospede: "PRECHECKIN_PENDENTE",
+        situacao_hospede: "PRECHECKIN_REALIZADO",
         check_in_em: "",
         check_out_em: "",
         dados_pessoais: {
