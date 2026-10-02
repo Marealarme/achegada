@@ -109,7 +109,13 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
       if (e.marketing) linha.consentimento_marketing_em = agora;
     }
     const chave = p.tipoDocumento === "CPF" ? "pousada_id,cpf" : "pousada_id,passaporte";
-    const { data, error } = await db.from("hospedes").upsert(linha, { onConflict: chave }).select("id").single();
+    let { data, error } = await db.from("hospedes").upsert(linha, { onConflict: chave }).select("id").single();
+    if (error && p.tipoDocumento === "CPF") {
+      // migração 0004 ainda não rodou: salva só os campos da Fase 1
+      const basico: Record<string, unknown> = { pousada_id: linha.pousada_id, nome: linha.nome, cpf: linha.cpf, data_nascimento: linha.data_nascimento, updated_at: agora };
+      if (i === 0) { basico.telefone = telefone; if (e.marketing) basico.consentimento_marketing_em = agora; }
+      ({ data, error } = await db.from("hospedes").upsert(basico, { onConflict: "pousada_id,cpf" }).select("id").single());
+    }
     if (error || !data) return { ok: false, erro: ERRO_SALVAR };
     idsHospedes.push(data.id);
   }
@@ -122,7 +128,7 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   if (errLig) return { ok: false, erro: ERRO_SALVAR };
 
   // ---------- 3. dados de chegada e aceites ----------
-  const { error: errPre } = await db.from("pre_chegadas").insert({
+  const dadosPre = {
     reserva_id: reserva.id,
     pousada_id: reserva.pousada_id,
     horario_chegada: /^\d{2}:\d{2}$/.test(e.horario) ? e.horario : null,
@@ -137,7 +143,14 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
     aceite_regras_em: agora,
     aceite_pet_em: e.pet?.tem ? agora : null,
     ip,
-  });
+  };
+  let { error: errPre } = await db.from("pre_chegadas").insert(dadosPre);
+  if (errPre) {
+    // migração 0004 ainda não rodou: tenta sem os campos de viagem
+    const { meio_transporte: _t, motivo_viagem: _m, ...semViagem } = dadosPre;
+    void _t; void _m;
+    ({ error: errPre } = await db.from("pre_chegadas").insert(semViagem));
+  }
   if (errPre) return { ok: false, erro: ERRO_SALVAR };
 
   // ---------- 4. ficha no governo (só se a integração estiver ligada) ----------
