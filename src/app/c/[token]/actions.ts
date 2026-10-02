@@ -25,7 +25,7 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true } | {
 
   const { data: reserva } = await db
     .from("reservas")
-    .select("id, pousada_id, adultos, criancas, check_out, telefone")
+    .select("id, pousada_id, check_out, telefone")
     .eq("token", String(e.token ?? ""))
     .maybeSingle();
   if (!reserva) return { ok: false, erro: "Link inválido. Peça um novo link à recepção." };
@@ -35,8 +35,8 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true } | {
   if (jaFeito) return { ok: false, erro: "O check-in desta reserva já foi feito." };
 
   // validação no servidor (a tela também valida, mas não confiamos só nela)
-  const total = reserva.adultos + reserva.criancas;
-  if (!Array.isArray(e.pessoas) || e.pessoas.length !== total) return { ok: false, erro: "Número de hóspedes diferente da reserva." };
+  // o hóspede pode ajustar a quantidade (veio sozinho, ou com mais gente): de 1 a 12 pessoas
+  if (!Array.isArray(e.pessoas) || e.pessoas.length < 1 || e.pessoas.length > 12) return { ok: false, erro: "Informe de 1 a 12 hóspedes." };
   const cpfs = new Set<string>();
   for (const p of e.pessoas) {
     const nome = String(p.nome ?? "").trim();

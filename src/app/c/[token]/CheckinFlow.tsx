@@ -29,6 +29,9 @@ export default function CheckinFlow(p: Props) {
   const [marketing, setMarketing] = useState(false);
   const [fnrhOk, setFnrhOk] = useState(false);
 
+  const adicionarPessoa = () => setPessoas((lista) => (lista.length >= 12 ? lista : [...lista, { nome: "", cpf: "", nascimento: "" }]));
+  const removerPessoa = (i: number) => setPessoas((lista) => lista.filter((_, j) => j !== i));
+
   const mudarPessoa = (i: number, campo: keyof Pessoa, valor: string) =>
     setPessoas((lista) => lista.map((x, j) => (j === i ? { ...x, [campo]: campo === "cpf" ? cpfFormatar(valor) : valor } : x)));
 
@@ -92,7 +95,10 @@ export default function CheckinFlow(p: Props) {
           <>
             {pessoas.map((x, i) => (
               <div className="card-g" key={i}>
-                <h3>{i === 0 ? "Titular" : `Acompanhante ${i}`}</h3>
+                <div className="card-g-head">
+                  <h3>{i === 0 ? "Titular" : `Acompanhante ${i}`}</h3>
+                  {i > 0 && <button className="btn ghost" type="button" onClick={() => removerPessoa(i)}>Remover</button>}
+                </div>
                 <div className="field">
                   <label htmlFor={`nome-${i}`}>Nome completo</label>
                   <input id={`nome-${i}`} type="text" autoComplete={i === 0 ? "name" : "off"} value={x.nome} onChange={(ev) => mudarPessoa(i, "nome", ev.target.value)} />
@@ -109,6 +115,10 @@ export default function CheckinFlow(p: Props) {
                 </div>
               </div>
             ))}
+            {pessoas.length < 12 && (
+              <button className="btn" type="button" onClick={adicionarPessoa}>+ Adicionar acompanhante</button>
+            )}
+            <p className="muted small">Vai sozinho ou com outra quantidade de pessoas? Remova ou adicione acompanhantes aqui.</p>
             {p.criancas > 0 && <p className="muted small">Para crianças e adolescentes, a ficha do governo também pede dados do responsável.</p>}
           </>
         )}

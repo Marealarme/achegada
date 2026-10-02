@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { criarReserva } from "./actions";
+import { criarReserva, marcarLinkEnviado } from "./actions";
 
 type Unidade = { id: string; nome: string };
 
@@ -36,17 +36,19 @@ export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
   );
 }
 
-/** Abre o WhatsApp do colaborador com a mensagem pronta; ele só aperta enviar. */
-export function BotoesMensagem({ mensagem, telefone }: { mensagem: string; telefone: string | null }) {
+/** Abre o WhatsApp do colaborador com a mensagem pronta; ele só aperta enviar. Registra o envio no card. */
+export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: string; mensagem: string; telefone: string | null }) {
   const [copiado, setCopiado] = useState(false);
   let numero = (telefone ?? "").replace(/\D/g, "");
   if (numero && numero.length <= 11) numero = "55" + numero;
   const wa = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+  const registrar = () => { marcarLinkEnviado(reservaId).catch(() => {}); };
 
   async function copiar() {
     try {
       await navigator.clipboard.writeText(mensagem);
       setCopiado(true);
+      registrar();
       setTimeout(() => setCopiado(false), 2000);
     } catch {
       setCopiado(false);
@@ -54,7 +56,7 @@ export function BotoesMensagem({ mensagem, telefone }: { mensagem: string; telef
   }
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <a className="btn primary" href={wa} target="_blank" rel="noopener noreferrer">Enviar no WhatsApp</a>
+      <a className="btn primary" href={wa} target="_blank" rel="noopener noreferrer" onClick={registrar}>Enviar no WhatsApp</a>
       <button className="btn" type="button" onClick={copiar}>{copiado ? "Copiado" : "Copiar mensagem"}</button>
     </div>
   );

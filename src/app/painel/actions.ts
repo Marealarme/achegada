@@ -54,3 +54,10 @@ export async function marcarFnrh(form: FormData) {
   await db.from("hospedes_reserva").update({ status_fnrh: "concluido" }).eq("reserva_id", id);
   revalidatePath("/painel");
 }
+
+/** Chamado quando a recepção clica em "Enviar no WhatsApp" ou "Copiar mensagem". */
+export async function marcarLinkEnviado(id: string) {
+  const db = await supabaseEquipe();
+  const { error } = await db.from("reservas").update({ link_enviado_em: new Date().toISOString() }).eq("id", id).is("link_enviado_em", null);
+  if (!error) revalidatePath("/painel");
+}

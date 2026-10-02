@@ -13,17 +13,25 @@ export const metadata: Metadata = { title: "Painel" };
 
 type Reserva = {
   id: string; titular: string; telefone: string | null; check_in: string; check_out: string;
-  adultos: number; criancas: number; token: string; fnrh_concluida: boolean;
+  adultos: number; criancas: number; token: string; fnrh_concluida: boolean; link_enviado_em?: string | null;
   unidades: { nome: string } | null;
   pre_chegadas: { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean }[] | { horario_chegada: string | null } | null;
   hospedes_reserva: { papel: string; hospedes: { nome: string; cpf: string; consentimento_marketing_em: string | null } | null }[];
 };
 
-function status(r: { fnrh_concluida: boolean; pre: unknown }) {
+function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: string | null }) {
   if (r.fnrh_concluida) return { cls: "ok", txt: "Pronto" };
   if (r.pre) return { cls: "pre", txt: "Pré-chegada feita" };
+  if (r.link_enviado_em) return { cls: "wait", txt: "Aguardando hóspede" };
   return { cls: "link", txt: "Link a enviar" };
 }
+
+function quando(iso: string) {
+  const d = new Date(Date.parse(iso) - 3 * 3600e3); // horário de Brasília
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1} às ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+const CAMPOS = "id, titular, telefone, check_in, check_out, adultos, criancas, token, fnrh_concluida, unidades(nome), pre_chegadas(horario_chegada, placa, pet_tem, pet_nome, pet_especie, pet_porte, late_checkout), hospedes_reserva(papel, hospedes(nome, cpf, consentimento_marketing_em))";
 
 export default async function Painel({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
   const { r: selecionada } = await searchParams;
@@ -39,15 +47,14 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const pousadaNome = (perfil.pousadas as unknown as { nome: string }).nome;
 
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // horário de Brasília
-  const [{ data: lista }, { data: unidades }] = await Promise.all([
-    db
-      .from("reservas")
-      .select("id, titular, telefone, check_in, check_out, adultos, criancas, token, fnrh_concluida, unidades(nome), pre_chegadas(horario_chegada, placa, pet_tem, pet_nome, pet_especie, pet_porte, late_checkout), hospedes_reserva(papel, hospedes(nome, cpf, consentimento_marketing_em))")
-      .gte("check_out", hoje)
-      .order("check_in", { ascending: true })
-      .limit(200),
+  const buscar = (campos: string) =>
+    db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
+  const [primeira, { data: unidades }] = await Promise.all([
+    buscar(`${CAMPOS}, link_enviado_em`),
     db.from("unidades").select("id, nome").order("ordem"),
   ]);
+  // se a migração 0002 ainda não rodou, a coluna link_enviado_em não existe: busca sem ela
+  const lista = primeira.error ? (await buscar(CAMPOS)).data : primeira.data;
 
   const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
     ...r,
@@ -115,7 +122,8 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
               <div className="field">
                 <span className="label">Mensagem para o hóspede</span>
                 <div className="msg">{msg}</div>
-                <BotoesMensagem mensagem={msg} telefone={atual.telefone} />
+                <BotoesMensagem reservaId={atual.id} mensagem={msg} telefone={atual.telefone} />
+                {atual.link_enviado_em && <p className="muted small">Link enviado em {quando(atual.link_enviado_em)}.</p>}
               </div>
               {p ? (
                 <>
