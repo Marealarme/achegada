@@ -8,21 +8,20 @@ import { ErroFnrh, fnrhLigada, registrarHospedagem, type PayloadHospedagem } fro
  * Falha: marca a reserva com erro; o pacote fica para o botão "Tentar de novo" do painel.
  */
 export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; erro?: string }> {
-  if (!fnrhLigada()) return { ok: false, erro: "Integração FNRH não configurada." };
   const db = supabaseServico();
-
-  const { data: fila } = await db.from("fnrh_envios").select("payload, tentativas").eq("reserva_id", reservaId).maybeSingle();
+  const { data: fila } = await db.from("fnrh_envios").select("payload, tentativas, pousada_id").eq("reserva_id", reservaId).maybeSingle();
   if (!fila?.payload) return { ok: false, erro: "Não há ficha pendente para enviar." };
+  if (!(await fnrhLigada(fila.pousada_id))) return { ok: false, erro: "Integração FNRH não configurada." };
 
   await db.from("reservas").update({ fnrh_status: "enviando", fnrh_erro: null }).eq("id", reservaId);
   try {
     const pacote = normalizar(fila.payload as PayloadHospedagem, reservaId);
     let idGoverno: string;
     try {
-      ({ reservaId: idGoverno } = await registrarHospedagem(pacote));
+      ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, pacote));
     } catch (e) {
       if (!(e instanceof ErroFnrh) || e.status !== 400 || !/situa[cç][aã]o/i.test(e.message)) throw e;
-      ({ reservaId: idGoverno } = await registrarHospedagem(comoPendente(pacote)));
+      ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, comoPendente(pacote)));
     }
     const agora = new Date().toISOString();
     await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: null, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);

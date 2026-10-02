@@ -29,4 +29,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/painel/:path*", "/entrar"] };
+export const config = { matcher: ["/painel/:path*", "/entrar", "/cadastrar"] };

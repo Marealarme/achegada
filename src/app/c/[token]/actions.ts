@@ -153,7 +153,7 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   if (errPre) return { ok: false, erro: ERRO_SALVAR };
 
   // ---------- 4. ficha no governo (só se a integração estiver ligada) ----------
-  if (!fnrhLigada()) return { ok: true, fichaEnviada: false };
+  if (!(await fnrhLigada(reserva.pousada_id))) return { ok: true, fichaEnviada: false };
   const payload = montarPayload({
     reservaId: reserva.id, checkIn: reserva.check_in, checkOut: reserva.check_out, otaReferencia: reserva.ota_referencia ?? null, pessoas, motivo, transporte,
     endereco: {

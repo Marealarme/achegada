@@ -70,8 +70,8 @@ export async function marcarLinkEnviado(id: string) {
 /** Confere (com as regras de segurança da equipe) que a reserva é da pousada de quem está logado. */
 async function reservaDaEquipe(id: string) {
   const db = await supabaseEquipe();
-  const { data } = await db.from("reservas").select("id, fnrh_reserva_id").eq("id", id).maybeSingle();
-  return { db, reserva: data as { id: string; fnrh_reserva_id: string | null } | null };
+  const { data } = await db.from("reservas").select("id, pousada_id, fnrh_reserva_id").eq("id", id).maybeSingle();
+  return { db, reserva: data as { id: string; pousada_id: string; fnrh_reserva_id: string | null } | null };
 }
 
 export async function reenviarFnrh(form: FormData) {
@@ -85,7 +85,7 @@ export async function registrarChegada(form: FormData) {
   if (!reserva?.fnrh_reserva_id) return;
   const agora = new Date();
   try {
-    await checkinReserva(reserva.fnrh_reserva_id, agora);
+    await checkinReserva(reserva.pousada_id, reserva.fnrh_reserva_id, agora);
     await db.from("reservas").update({ checkin_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);
   } catch (e) {
     await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Check-in não registrado: ${e.message}` : "Check-in não registrado." }).eq("id", reserva.id);
@@ -98,7 +98,7 @@ export async function registrarSaida(form: FormData) {
   if (!reserva?.fnrh_reserva_id) return;
   const agora = new Date();
   try {
-    await checkoutReserva(reserva.fnrh_reserva_id, agora);
+    await checkoutReserva(reserva.pousada_id, reserva.fnrh_reserva_id, agora);
     await db.from("reservas").update({ checkout_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);
   } catch (e) {
     await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Check-out não registrado: ${e.message}` : "Check-out não registrado." }).eq("id", reserva.id);
@@ -110,7 +110,7 @@ export async function cancelarFicha(form: FormData) {
   const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
   if (!reserva?.fnrh_reserva_id) return;
   try {
-    await cancelarReserva(reserva.fnrh_reserva_id);
+    await cancelarReserva(reserva.pousada_id, reserva.fnrh_reserva_id);
     await db.from("reservas").update({
       fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false, fnrh_enviado_em: null,
       fnrh_erro: `Ficha cancelada no governo em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,

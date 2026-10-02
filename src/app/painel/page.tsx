@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { supabaseEquipe } from "@/lib/supabase";
+import { sessaoEquipe } from "@/lib/sessao";
+import Cabecalho from "./Cabecalho";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
-import { sair } from "../entrar/actions";
 import { cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { BotoesMensagem, ImportarHotelLink, NovaReserva } from "./Componentes";
@@ -43,16 +42,9 @@ const CAMPOS = "id, titular, telefone, check_in, check_out, adultos, criancas, t
 
 export default async function Painel({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
   const { r: selecionada } = await searchParams;
-  const db = await supabaseEquipe();
-  const { data: auth } = await db.auth.getUser();
-  if (!auth.user) redirect("/entrar");
-
-  const { data: perfil } = await db.from("perfis").select("nome, pousadas(nome)").eq("user_id", auth.user.id).maybeSingle();
-  if (!perfil)
-    return (
-      <main className="wrap"><div className="panel login"><h1>Quase lá</h1><p>Seu usuário ainda não está ligado a uma pousada. Rode o bloco final do arquivo de banco de dados com o seu e-mail.</p></div></main>
-    );
-  const pousadaNome = (perfil.pousadas as unknown as { nome: string }).nome;
+  const sessao = await sessaoEquipe({ exigirAssinatura: true });
+  const { db, perfil } = sessao;
+  const pousadaNome = sessao.pousada.nome;
 
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // horário de Brasília
   const buscar = (campos: string) =>
@@ -68,7 +60,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const segunda = await buscar(`${CAMPOS}, link_enviado_em`);
     lista = segunda.error ? (await buscar(CAMPOS)).data : segunda.data;
   }
-  const integracao = fnrhLigada();
+  const integracao = await fnrhLigada(sessao.pousada.id);
 
   const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
     ...r,
@@ -159,13 +151,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   };
   return (
     <main className="wrap">
-      <header className="top">
-        <div className="brand">
-          <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>
-          <div><h1>A Chegada</h1><small>{pousadaNome} · {perfil.nome}</small></div>
-        </div>
-        <form action={sair}><button className="btn" type="submit">Sair</button></form>
-      </header>
+      <Cabecalho s={sessao} atual="reservas" />
 
       <section className="kpis" aria-label="Resumo">
         <div className="kpi"><span className="label">Próximas estadias</span><strong>{reservas.length}</strong></div>

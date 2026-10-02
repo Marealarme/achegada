@@ -17,7 +17,7 @@ export type Endereco = {
 type Props = {
   token: string; titular: string; telefone: string | null; unidade: string; checkIn: string; checkOut: string; noites: number;
   adultos: number; criancas: number; regras: string[]; termoPet: string[]; cancelamento: string[];
-  pousada: string; whatsapp: string | null; fnrhAutomatica: boolean;
+  pousada: string; whatsapp: string | null; fnrhAutomatica: boolean; cafeIncluso: boolean; avisoEarlyLate: string | null;
 };
 
 type Passo = "inicio" | "pessoas" | "endereco" | "chegada" | "estadia" | "regras" | "ficha" | "pronto";
@@ -339,9 +339,9 @@ export default function CheckinFlow(p: Props) {
 
         {passo === "estadia" && (
           <>
-            <div className="note"><b>Café da manhã incluso</b><span className="muted">Já faz parte da sua reserva e é entregue na porta do chalé.</span></div>
-            <div className="note"><b>Early check-in e late check-out</b><span className="muted">Dependem de disponibilidade e devem ser solicitados diretamente à nossa gerente, pelo WhatsApp da pousada.</span>
-              {linkWhatsApp(p.whatsapp) && <a href={linkWhatsApp(p.whatsapp, "Olá! Gostaria de solicitar early check-in / late check-out.") ?? undefined} target="_blank" rel="noopener noreferrer">Falar com a gerente no WhatsApp</a>}
+            {p.cafeIncluso && <div className="note"><b>Café da manhã incluso</b><span className="muted">Já faz parte da sua reserva.</span></div>}
+            <div className="note"><b>Early check-in e late check-out</b><span className="muted">{p.avisoEarlyLate || "Dependem de disponibilidade e devem ser solicitados à pousada pelo WhatsApp."}</span>
+              {linkWhatsApp(p.whatsapp) && <a href={linkWhatsApp(p.whatsapp, "Olá! Gostaria de solicitar early check-in / late check-out.") ?? undefined} target="_blank" rel="noopener noreferrer">Falar com a pousada no WhatsApp</a>}
             </div>
           </>
         )}

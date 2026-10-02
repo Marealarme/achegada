@@ -7,7 +7,7 @@ export function linkWhatsApp(numero: string | null | undefined, texto?: string) 
 }
 
 export default function AcoesFinais({ pousada, whatsapp }: { pousada: string; whatsapp: string | null }) {
-  const mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${pousada} Maresias`)}`;
+  const mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pousada)}`;
   const wa = linkWhatsApp(whatsapp);
   return (
     <div className="acoes">
