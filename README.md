@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chegada
 
-## Getting Started
+Check-in online e pré-chegada de hóspedes, integrado à FNRH Digital. Piloto: Lua Chalés (Maresias).
 
-First, run the development server:
+## O que já funciona (Fase 1)
+- **Painel da recepção** (`/painel`): login da equipe, próximas chegadas, nova reserva, mensagem pronta com botão **Enviar no WhatsApp**, detalhe da pré-chegada, marcar FNRH concluída.
+- **Check-in do hóspede** (`/c/<token>`): 7 passos no celular; cadastra titular e acompanhantes (cadastro permanente por CPF), chegada, placa, pet, late check-out, aceites e consentimento de ofertas; leva à ficha oficial da FNRH.
 
-```bash
+## Como colocar no ar (uma vez)
+1. **Supabase** → SQL Editor → cole `supabase/migrations/0001_inicial.sql` → Run.
+2. **Supabase** → Authentication → Users → Add user (seu e-mail e uma senha).
+3. **Supabase** → SQL Editor → rode o bloco final do arquivo (comentado) trocando o e-mail pelo seu.
+4. **Vercel** → Add New → Project → importe o repositório `chegada` → em Environment Variables cadastre:
+   - `NEXT_PUBLIC_SUPABASE_URL` (Supabase → Project Settings → API → Project URL)
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (mesma tela, chave `anon` / publishable)
+   - `SUPABASE_SERVICE_ROLE_KEY` (mesma tela, chave `service_role` / secret — **nunca compartilhe**)
+   - `NEXT_PUBLIC_SITE_URL` (o endereço final, ex.: `https://chegada.vercel.app`)
+5. Deploy. Acesse `/entrar` e faça login.
+
+## Rodar no computador
+```
+npm install
+cp .env.example .env.local   # preencha os valores
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Próximos passos
+- Importar reservas por planilha do Hotel Link.
+- Fase 2: integração com a API FNRH v2 (`src/lib/fnrh/`).
+- Leitura de documento por foto (OCR), sem guardar a imagem.

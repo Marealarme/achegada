@@ -1,0 +1,157 @@
+import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { supabaseEquipe } from "@/lib/supabase";
+import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
+import { sair } from "../entrar/actions";
+import { marcarFnrh } from "./actions";
+import { BotoesMensagem, NovaReserva } from "./Componentes";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Painel" };
+
+type Reserva = {
+  id: string; titular: string; telefone: string | null; check_in: string; check_out: string;
+  adultos: number; criancas: number; token: string; fnrh_concluida: boolean;
+  unidades: { nome: string } | null;
+  pre_chegadas: { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean }[] | { horario_chegada: string | null } | null;
+  hospedes_reserva: { papel: string; hospedes: { nome: string; cpf: string; consentimento_marketing_em: string | null } | null }[];
+};
+
+function status(r: { fnrh_concluida: boolean; pre: unknown }) {
+  if (r.fnrh_concluida) return { cls: "ok", txt: "Pronto" };
+  if (r.pre) return { cls: "pre", txt: "Pré-chegada feita" };
+  return { cls: "link", txt: "Link a enviar" };
+}
+
+export default async function Painel({ searchParams }: { searchParams: Promise<{ r?: string }> }) {
+  const { r: selecionada } = await searchParams;
+  const db = await supabaseEquipe();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) redirect("/entrar");
+
+  const { data: perfil } = await db.from("perfis").select("nome, pousadas(nome)").eq("user_id", auth.user.id).maybeSingle();
+  if (!perfil)
+    return (
+      <main className="wrap"><div className="panel login"><h1>Quase lá</h1><p>Seu usuário ainda não está ligado a uma pousada. Rode o bloco final do arquivo de banco de dados com o seu e-mail.</p></div></main>
+    );
+  const pousadaNome = (perfil.pousadas as unknown as { nome: string }).nome;
+
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // horário de Brasília
+  const [{ data: lista }, { data: unidades }] = await Promise.all([
+    db
+      .from("reservas")
+      .select("id, titular, telefone, check_in, check_out, adultos, criancas, token, fnrh_concluida, unidades(nome), pre_chegadas(horario_chegada, placa, pet_tem, pet_nome, pet_especie, pet_porte, late_checkout), hospedes_reserva(papel, hospedes(nome, cpf, consentimento_marketing_em))")
+      .gte("check_out", hoje)
+      .order("check_in", { ascending: true })
+      .limit(200),
+    db.from("unidades").select("id, nome").order("ordem"),
+  ]);
+
+  const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
+    ...r,
+    pre: Array.isArray(r.pre_chegadas) ? r.pre_chegadas[0] ?? null : (r.pre_chegadas as Reserva["pre_chegadas"] & object) ?? null,
+  }));
+  const atual = reservas.find((x) => x.id === selecionada) ?? reservas[0];
+
+  const h = await headers();
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;
+  const feitas = reservas.filter((r) => r.pre).length;
+  const prontas = reservas.filter((r) => r.fnrh_concluida).length;
+
+  return (
+    <main className="wrap">
+      <header className="top">
+        <div className="brand">
+          <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>
+          <div><h1>Chegada</h1><small>{pousadaNome} · {perfil.nome}</small></div>
+        </div>
+        <form action={sair}><button className="btn" type="submit">Sair</button></form>
+      </header>
+
+      <section className="kpis" aria-label="Resumo">
+        <div className="kpi"><span className="label">Próximas estadias</span><strong>{reservas.length}</strong></div>
+        <div className="kpi"><span className="label">Pré-chegada feita</span><strong>{feitas} de {reservas.length}</strong></div>
+        <div className="kpi"><span className="label">Fichas FNRH prontas</span><strong>{prontas} de {reservas.length}</strong></div>
+      </section>
+
+      <div className="desk">
+        <section className="panel" aria-label="Chegadas">
+          <div className="panel-head"><h2>Próximas chegadas</h2><NovaReserva unidades={unidades ?? []} /></div>
+          {reservas.length === 0 ? (
+            <p className="empty">Nenhuma reserva ainda. Use “+ Nova reserva” para criar a primeira e gerar o link do hóspede.</p>
+          ) : (
+            <div className="list">
+              {reservas.map((x) => {
+                const st = status(x);
+                const dt = partesData(x.check_in);
+                return (
+                  <Link key={x.id} href={`/painel?r=${x.id}`} className="row" aria-current={atual?.id === x.id}>
+                    <span className="date"><b>{dt.dia}</b><span>{dt.mes}</span></span>
+                    <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
+                    <span className={`pill ${st.cls}`}>{st.txt}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {atual && (() => {
+          const st = status(atual);
+          const p = atual.pre as null | { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean };
+          const link = `${base}/c/${atual.token}`;
+          const msg = mensagemWhatsApp({ titular: atual.titular, unidade: atual.unidades?.nome ?? "seu chalé", check_in: atual.check_in, check_out: atual.check_out, link }, pousadaNome);
+          const titular = atual.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes;
+          return (
+            <section className="panel" aria-label="Detalhe da reserva">
+              <div className="panel-head"><div><span className="label">{atual.unidades?.nome ?? "Sem chalé"}</span><h2>{atual.titular}</h2></div><span className={`pill ${st.cls}`}>{st.txt}</span></div>
+              <dl className="kv">
+                <dt>Estadia</dt><dd>{dataCurta(atual.check_in)} a {dataCurta(atual.check_out)} · {noites(atual.check_in, atual.check_out)} noites</dd>
+                <dt>Hóspedes</dt><dd>{atual.adultos} adultos{atual.criancas ? ` e ${atual.criancas} criança(s)` : ""}</dd>
+                <dt>WhatsApp</dt><dd className="mono">{atual.telefone ?? "—"}</dd>
+              </dl>
+              <div className="field">
+                <span className="label">Mensagem para o hóspede</span>
+                <div className="msg">{msg}</div>
+                <BotoesMensagem mensagem={msg} telefone={atual.telefone} />
+              </div>
+              {p ? (
+                <>
+                  <div className="field"><span className="label">Pré-chegada</span>
+                    <dl className="kv">
+                      <dt>Chega às</dt><dd>{p.horario_chegada?.slice(0, 5) ?? "—"}</dd>
+                      <dt>Placa</dt><dd className="mono">{p.placa ?? "—"}</dd>
+                      <dt>Pet</dt><dd>{p.pet_tem ? `${p.pet_nome} · ${p.pet_especie}, porte ${p.pet_porte} · termo aceito` : "Sem pet"}</dd>
+                      <dt>Late check-out</dt><dd>{p.late_checkout ? "Pediu (confirmar valor)" : "Não"}</dd>
+                      <dt>Regras da casa</dt><dd>Aceitas</dd>
+                      <dt>Ofertas</dt><dd>{titular?.consentimento_marketing_em ? "Aceitou receber" : "Não aceitou"}</dd>
+                    </dl>
+                  </div>
+                  <div className="field"><span className="label">Hóspedes cadastrados</span>
+                    <div className="people">
+                      {atual.hospedes_reserva.map((x, i) => (
+                        <div className="person" key={i}><span>{x.hospedes?.nome}</span><span className="mono muted">CPF {cpfMascarado(x.hospedes?.cpf ?? "")}</span></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="field"><span className="label">Ficha FNRH</span>
+                    {atual.fnrh_concluida ? <p>Fichas confirmadas no gov.br.</p> : (
+                      <>
+                        <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui. Na Fase 2 isso será automático.</p>
+                        <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Marcar FNRH concluída</button></form>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="empty">O hóspede ainda não fez a pré-chegada. Envie o link pelo WhatsApp; se precisar, reenvie na véspera.</p>
+              )}
+            </section>
+          );
+        })()}
+      </div>
+    </main>
+  );
+}
