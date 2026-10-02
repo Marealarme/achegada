@@ -4,6 +4,8 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseEquipe } from "@/lib/supabase";
+import { checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
+import { processarEnvio } from "@/lib/fnrh/envio";
 
 export async function criarReserva(_: string, form: FormData): Promise<string> {
   const db = await supabaseEquipe();
@@ -60,4 +62,45 @@ export async function marcarLinkEnviado(id: string) {
   const db = await supabaseEquipe();
   const { error } = await db.from("reservas").update({ link_enviado_em: new Date().toISOString() }).eq("id", id).is("link_enviado_em", null);
   if (!error) revalidatePath("/painel");
+}
+
+// ---------- Fase 2: ficha FNRH automática ----------
+
+/** Confere (com as regras de segurança da equipe) que a reserva é da pousada de quem está logado. */
+async function reservaDaEquipe(id: string) {
+  const db = await supabaseEquipe();
+  const { data } = await db.from("reservas").select("id, fnrh_reserva_id").eq("id", id).maybeSingle();
+  return { db, reserva: data as { id: string; fnrh_reserva_id: string | null } | null };
+}
+
+export async function reenviarFnrh(form: FormData) {
+  const { reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
+  if (reserva) await processarEnvio(reserva.id);
+  revalidatePath("/painel");
+}
+
+export async function registrarChegada(form: FormData) {
+  const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
+  if (!reserva?.fnrh_reserva_id) return;
+  const agora = new Date();
+  try {
+    await checkinReserva(reserva.fnrh_reserva_id, agora);
+    await db.from("reservas").update({ checkin_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);
+  } catch (e) {
+    await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Check-in não registrado: ${e.message}` : "Check-in não registrado." }).eq("id", reserva.id);
+  }
+  revalidatePath("/painel");
+}
+
+export async function registrarSaida(form: FormData) {
+  const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
+  if (!reserva?.fnrh_reserva_id) return;
+  const agora = new Date();
+  try {
+    await checkoutReserva(reserva.fnrh_reserva_id, agora);
+    await db.from("reservas").update({ checkout_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);
+  } catch (e) {
+    await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Check-out não registrado: ${e.message}` : "Check-out não registrado." }).eq("id", reserva.id);
+  }
+  revalidatePath("/painel");
 }

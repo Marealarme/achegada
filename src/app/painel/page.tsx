@@ -5,7 +5,8 @@ import type { Metadata } from "next";
 import { supabaseEquipe } from "@/lib/supabase";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
 import { sair } from "../entrar/actions";
-import { marcarFnrh } from "./actions";
+import { marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
+import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { BotoesMensagem, NovaReserva } from "./Componentes";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +15,17 @@ export const metadata: Metadata = { title: "Painel" };
 type Reserva = {
   id: string; titular: string; telefone: string | null; check_in: string; check_out: string;
   adultos: number; criancas: number; token: string; fnrh_concluida: boolean; link_enviado_em?: string | null;
+  fnrh_status?: string; fnrh_erro?: string | null; fnrh_reserva_id?: string | null; checkin_em?: string | null; checkout_em?: string | null;
   unidades: { nome: string } | null;
   pre_chegadas: { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean }[] | { horario_chegada: string | null } | null;
-  hospedes_reserva: { papel: string; hospedes: { nome: string; cpf: string; consentimento_marketing_em: string | null } | null }[];
+  hospedes_reserva: { papel: string; hospedes: { nome: string; cpf: string | null; passaporte?: string | null; consentimento_marketing_em: string | null } | null }[];
 };
 
-function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: string | null }) {
+function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: string | null; fnrh_status?: string; checkin_em?: string | null; checkout_em?: string | null }) {
+  if (r.checkout_em) return { cls: "ok", txt: "Saiu" };
+  if (r.checkin_em) return { cls: "ok", txt: "Hospedado" };
+  if (r.fnrh_status === "erro") return { cls: "bad", txt: "Erro na ficha" };
+  if (r.fnrh_status === "enviado") return { cls: "ok", txt: "Ficha enviada" };
   if (r.fnrh_concluida) return { cls: "ok", txt: "Pronto" };
   if (r.pre) return { cls: "pre", txt: "Pré-chegada feita" };
   if (r.link_enviado_em) return { cls: "wait", txt: "Aguardando hóspede" };
@@ -50,11 +56,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const buscar = (campos: string) =>
     db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
   const [primeira, { data: unidades }] = await Promise.all([
-    buscar(`${CAMPOS}, link_enviado_em`),
+    buscar(`${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`),
     db.from("unidades").select("id, nome").order("ordem"),
   ]);
   // se a migração 0002 ainda não rodou, a coluna link_enviado_em não existe: busca sem ela
-  const lista = primeira.error ? (await buscar(CAMPOS)).data : primeira.data;
+  let lista = primeira.data;
+  if (primeira.error) {
+    // migrações 0002/0004 ainda não rodaram: busca só o que existe
+    const segunda = await buscar(`${CAMPOS}, link_enviado_em`);
+    lista = segunda.error ? (await buscar(CAMPOS)).data : segunda.data;
+  }
+  const integracao = fnrhLigada();
 
   const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
     ...r,
@@ -139,14 +151,36 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                   <div className="field"><span className="label">Hóspedes cadastrados</span>
                     <div className="people">
                       {atual.hospedes_reserva.map((x, i) => (
-                        <div className="person" key={i}><span>{x.hospedes?.nome}</span><span className="mono muted">CPF {cpfMascarado(x.hospedes?.cpf ?? "")}</span></div>
+                        <div className="person" key={i}><span>{x.hospedes?.nome}</span><span className="mono muted">{x.hospedes?.cpf ? `CPF ${cpfMascarado(x.hospedes.cpf)}` : "Passaporte"}</span></div>
                       ))}
                     </div>
                   </div>
                   <div className="field"><span className="label">Ficha FNRH</span>
-                    {atual.fnrh_concluida ? <p>Fichas confirmadas no gov.br.</p> : (
+                    {atual.fnrh_status === "enviado" ? (
                       <>
-                        <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui. Na Fase 2 isso será automático.</p>
+                        <p>Ficha registrada no governo{atual.checkin_em ? ` · check-in em ${quando(atual.checkin_em)}` : ""}{atual.checkout_em ? ` · check-out em ${quando(atual.checkout_em)}` : ""}.</p>
+                        {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Hóspede chegou</button></form>}
+                          {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Hóspede saiu</button></form>}
+                        </div>
+                        {!atual.checkin_em && <p className="muted small">Ao clicar, o check-in é registrado na FNRH com o horário de agora.</p>}
+                      </>
+                    ) : atual.fnrh_status === "erro" ? (
+                      <>
+                        <p className="err">O governo recusou ou não respondeu: {atual.fnrh_erro ?? "erro desconhecido"}</p>
+                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Tentar de novo</button></form>
+                      </>
+                    ) : atual.fnrh_concluida ? (
+                      <p>Fichas confirmadas no gov.br.</p>
+                    ) : integracao ? (
+                      <>
+                        <p className="muted small">A ficha ainda não foi enviada ao governo.</p>
+                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Enviar ficha agora</button></form>
+                      </>
+                    ) : (
+                      <>
+                        <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui.</p>
                         <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Marcar FNRH concluída</button></form>
                       </>
                     )}

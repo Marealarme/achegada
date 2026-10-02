@@ -114,3 +114,4 @@ input[type=text], input[type=tel], input[type=email], input[type=password], inpu
 .btn.ghost { border-color: transparent; background: transparent; color: var(--accent); padding-inline: 6px; }
 .acoes { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
 .note a { color: var(--accent); font-weight: 600; }
+.pill.bad { background: var(--warn-soft); color: var(--bad); }

@@ -4,6 +4,7 @@ import { supabaseServico } from "@/lib/supabase";
 import { dataCurta, noites } from "@/lib/util";
 import CheckinFlow from "./CheckinFlow";
 import AcoesFinais from "./AcoesFinais";
+import { fnrhLigada } from "@/lib/fnrh/cliente";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Check-in online", robots: { index: false, follow: false } };
@@ -14,11 +15,11 @@ export default async function Page({ params }: { params: Promise<{ token: string
 
   const db = supabaseServico();
   type ReservaHospede = {
-    id: string; titular: string; check_in: string; check_out: string; adultos: number; criancas: number;
+    id: string; titular: string; telefone: string | null; check_in: string; check_out: string; adultos: number; criancas: number;
     pousadas: unknown; unidades: unknown;
   };
   const buscar = async (camposPousada: string) => {
-    const campos: string = `id, titular, check_in, check_out, adultos, criancas, pousadas(${camposPousada}), unidades(nome)`;
+    const campos: string = `id, titular, telefone, check_in, check_out, adultos, criancas, pousadas(${camposPousada}), unidades(nome)`;
     const res = await db.from("reservas").select(campos).eq("token", token).maybeSingle();
     return { data: res.data as unknown as ReservaHospede | null, error: res.error };
   };
@@ -59,6 +60,8 @@ export default async function Page({ params }: { params: Promise<{ token: string
           <CheckinFlow
             token={token}
             titular={r.titular}
+            telefone={r.telefone}
+            fnrhAutomatica={fnrhLigada()}
             unidade={unidade}
             checkIn={r.check_in}
             checkOut={r.check_out}
