@@ -65,7 +65,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
       <header className="top">
         <div className="brand">
           <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>
-          <div><h1>Chegada</h1><small>{pousadaNome} · {perfil.nome}</small></div>
+          <div><h1>A Chegada</h1><small>{pousadaNome} · {perfil.nome}</small></div>
         </div>
         <form action={sair}><button className="btn" type="submit">Sair</button></form>
       </header>

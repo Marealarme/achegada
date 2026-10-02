@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Chegada", template: "%s · Chegada" },
+  title: { default: "A Chegada", template: "%s · A Chegada" },
   description: "Check-in online e pré-chegada de hóspedes.",
 };
 

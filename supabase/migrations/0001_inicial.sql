@@ -1,4 +1,4 @@
--- Chegada · migração inicial (Fase 1)
+-- A Chegada · migração inicial (Fase 1)
 -- Rode este arquivo uma vez no Supabase: SQL Editor → New query → colar → Run.
 -- Regras: toda tabela tem pousada_id; a equipe só enxerga a própria pousada (RLS).
 -- O hóspede NUNCA acessa o banco direto: a página dele fala com o servidor, que usa a chave de serviço.

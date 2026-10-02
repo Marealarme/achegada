@@ -1,4 +1,4 @@
-# Projeto Chegada — pré-chegada de hóspedes + FNRH
+# Projeto A Chegada — pré-chegada de hóspedes + FNRH
 
 ## Quem sou
 Dono de pousada (Lua Chalés, Maresias), não sou programador. Explique em português simples o que fez e como testar.

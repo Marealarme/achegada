@@ -9,7 +9,7 @@ export default function Entrar() {
     <main className="wrap">
       <form action={acao} className="panel login">
         <div>
-          <span className="label">Chegada</span>
+          <span className="label">A Chegada</span>
           <h1>Entrar no painel</h1>
         </div>
         <div className="field">

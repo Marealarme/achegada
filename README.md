@@ -1,4 +1,4 @@
-# Chegada
+# A Chegada
 
 Check-in online e pré-chegada de hóspedes, integrado à FNRH Digital. Piloto: Lua Chalés (Maresias).
 
