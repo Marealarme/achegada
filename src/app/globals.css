@@ -215,3 +215,4 @@ textarea { width: 100%; min-width: 0; font: 400 .95rem var(--body); color: var(-
 .selo-inn img { display: block; height: auto; }
 .lp-top .brand { flex-wrap: wrap; }
 @media (max-width: 640px) { .lp-top .selo-inn { display: none; } }
+.logo-pousada { border-radius: 10px; background: #fff; object-fit: contain; padding: 3px; border: 1px solid var(--line); }
