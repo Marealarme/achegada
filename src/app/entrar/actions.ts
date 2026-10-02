@@ -28,7 +28,11 @@ export async function pedirNovaSenha(_: string, form: FormData): Promise<string>
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;
   const db = await supabaseEquipe();
   const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: `${base}/auth/confirmar?proximo=/nova-senha` });
-  if (error && /rate|limit|seconds/i.test(error.message)) return "erro:Muitos pedidos seguidos. Espere 1 minuto e tente de novo.";
+  if (error && /rate|limit|seconds/i.test(error.message)) return "erro:Muitos pedidos seguidos. Espere alguns minutos e tente de novo.";
+  if (error) {
+    console.error("[senha] falha ao enviar e-mail de recuperação:", error.message);
+    return "erro:Não conseguimos enviar o e-mail agora. Tente de novo em alguns minutos.";
+  }
   return "ok";
 }
 
