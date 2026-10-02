@@ -5,12 +5,12 @@ export const metadata: Metadata = { title: "Termos de uso e política de privaci
 // Dados da empresa: complete os campos entre colchetes antes da primeira venda.
 const EMPRESA = "Inn Expert Assessoria Ltda";
 const MARCA = "Inn Experts";
-const CNPJ = "[CNPJ]";
+const CNPJ = "61.722.517/0001-89";
 const ENDERECO = "[endereço completo da sede]";
 const EMAIL = "[e-mail de contato]";
 const WHATS = "(19) 99759-4522";
 const ENCARREGADO = "[nome do encarregado de dados]";
-const FORO = "[cidade/UF da sede]";
+const FORO = "São Sebastião/SP";
 
 export default function Termos() {
   return (

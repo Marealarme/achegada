@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Marca from "../Marca";
 import { sair } from "../entrar/actions";
 import type { Sessao } from "@/lib/sessao";
 
@@ -16,7 +17,7 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
         <div className="brand">
           {s.pousada.logo_url
             ? <img src={s.pousada.logo_url} alt={`Logo ${s.pousada.nome}`} width={44} height={44} className="logo-pousada" />
-            : <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>}
+            : <Marca />}
           <div><h1>{s.pousada.nome}</h1><small>A Chegada · {s.perfil.nome}</small></div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

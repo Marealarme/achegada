@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PLANOS, reais, type Plano } from "@/lib/assinatura";
 import SeloInn from "./SeloInn";
+import Marca from "./Marca";
 
 const EMPRESA = "Inn Experts Assessoria em Hospitalidade";
 const FONE = "(19) 99759-4522";
@@ -61,15 +62,12 @@ const FAQ = [
   { q: "Tenho mais de 40 unidades. Atende?", r: `Sim. Fale com a ${EMPRESA} pelo WhatsApp ${FONE} para um plano sob medida.` },
 ];
 
-function Lua({ size = 34 }: { size?: number }) {
-  return <svg width={size} height={size} viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>;
-}
 
 export default function Inicio() {
   return (
     <main className="lp">
       <header className="lp-top">
-        <div className="brand"><Lua /><b>A Chegada</b><SeloInn largura={110} /></div>
+        <div className="brand"><Marca /><b>A Chegada</b><SeloInn largura={110} /></div>
         <nav><Link href="/entrar" className="btn ghost">Entrar</Link><Link href="/cadastrar" className="btn primary">Testar 30 dias grátis</Link></nav>
       </header>
 
