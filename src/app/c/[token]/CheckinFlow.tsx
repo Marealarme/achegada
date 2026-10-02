@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { cpfFormatar, cpfValido, dataCurta, FNRH_HOSPEDE_URL, somenteDigitos } from "@/lib/util";
 import { enviarCheckin } from "./actions";
+import AcoesFinais, { linkWhatsApp } from "./AcoesFinais";
 
 type Pessoa = { nome: string; cpf: string; nascimento: string };
 type Props = {
   token: string; titular: string; unidade: string; checkIn: string; checkOut: string; noites: number;
-  adultos: number; criancas: number; regras: string[]; termoPet: string[]; cancelamento: string[];
+  adultos: number; criancas: number; regras: string[]; termoPet: string[]; cancelamento: string[]; pousada: string; whatsapp: string | null;
 };
 
 const PASSOS = ["Boas-vindas", "Quem vem", "Chegada", "Sua estadia", "Regras", "Ficha do governo", "Pronto"];
@@ -167,7 +168,9 @@ export default function CheckinFlow(p: Props) {
         {passo === 3 && (
           <>
             <div className="note"><b>Café da manhã incluso</b><span className="muted">Já faz parte da sua reserva e é entregue na porta do chalé.</span></div>
-            <div className="note"><b>Early check-in e late check-out</b><span className="muted">Dependem de disponibilidade e devem ser solicitados diretamente à nossa gerente, pelo WhatsApp da pousada.</span></div>
+            <div className="note"><b>Early check-in e late check-out</b><span className="muted">Dependem de disponibilidade e devem ser solicitados diretamente à nossa gerente, pelo WhatsApp da pousada.</span>
+              {linkWhatsApp(p.whatsapp) && <a href={linkWhatsApp(p.whatsapp, "Olá! Gostaria de solicitar early check-in / late check-out.") ?? undefined} target="_blank" rel="noopener noreferrer">Falar com a gerente no WhatsApp</a>}
+            </div>
           </>
         )}
 
@@ -207,6 +210,7 @@ export default function CheckinFlow(p: Props) {
             <div className="badge-ok" aria-hidden="true">✓</div>
             <h2>Check-in online concluído</h2>
             <p className="muted">Obrigado! Agora é só chegar.</p>
+            <AcoesFinais pousada={p.pousada} whatsapp={p.whatsapp} />
           </div>
         )}
 

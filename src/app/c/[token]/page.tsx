@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { supabaseServico } from "@/lib/supabase";
 import { dataCurta, noites } from "@/lib/util";
 import CheckinFlow from "./CheckinFlow";
+import AcoesFinais from "./AcoesFinais";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Check-in online", robots: { index: false, follow: false } };
@@ -22,12 +23,12 @@ export default async function Page({ params }: { params: Promise<{ token: string
     return { data: res.data as unknown as ReservaHospede | null, error: res.error };
   };
   // se a migração 0003 ainda não rodou, a coluna politica_cancelamento não existe: busca sem ela
-  let consulta = await buscar("nome, regras_da_casa, termo_pet, politica_cancelamento");
-  if (consulta.error) consulta = await buscar("nome, regras_da_casa, termo_pet");
+  let consulta = await buscar("nome, whatsapp, regras_da_casa, termo_pet, politica_cancelamento");
+  if (consulta.error) consulta = await buscar("nome, whatsapp, regras_da_casa, termo_pet");
   const r = consulta.data;
   if (!r) notFound();
 
-  const pousada = r.pousadas as unknown as { nome: string; regras_da_casa: string | null; termo_pet: string | null; politica_cancelamento?: string | null };
+  const pousada = r.pousadas as unknown as { nome: string; whatsapp: string | null; regras_da_casa: string | null; termo_pet: string | null; politica_cancelamento?: string | null };
   const unidade = (r.unidades as unknown as { nome: string } | null)?.nome ?? "Chalé";
   const expirado = Date.parse(r.check_out) + 2 * 864e5 < Date.now();
   const { data: pre } = await db.from("pre_chegadas").select("id").eq("reserva_id", r.id).maybeSingle();
@@ -52,6 +53,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
             <div className="badge-ok" aria-hidden="true">✓</div>
             <h2>Seu check-in online já foi feito</h2>
             <p className="muted">A recepção já tem seus dados. Até breve em Maresias!</p>
+            <AcoesFinais pousada={pousada.nome} whatsapp={pousada.whatsapp} />
           </div>
         ) : (
           <CheckinFlow
@@ -66,6 +68,8 @@ export default async function Page({ params }: { params: Promise<{ token: string
             regras={(pousada.regras_da_casa ?? "").split("\n").filter(Boolean)}
             termoPet={(pousada.termo_pet ?? "").split("\n").filter(Boolean)}
             cancelamento={(pousada.politica_cancelamento ?? "").split("\n").filter(Boolean)}
+            pousada={pousada.nome}
+            whatsapp={pousada.whatsapp}
           />
         )}
       </article>

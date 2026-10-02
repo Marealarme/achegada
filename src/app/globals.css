@@ -112,3 +112,5 @@ input[type=text], input[type=tel], input[type=email], input[type=password], inpu
 .pill.link { background: var(--surface-2); color: var(--muted); }
 .card-g-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--accent); padding-inline: 6px; }
+.acoes { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
+.note a { color: var(--accent); font-weight: 600; }
