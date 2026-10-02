@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { supabaseEquipe } from "@/lib/supabase";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
 import { sair } from "../entrar/actions";
-import { marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
+import { cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { BotoesMensagem, NovaReserva } from "./Componentes";
 
@@ -162,6 +162,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                         {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Hóspede chegou</button></form>}
+                          {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><button className="btn ghost" type="submit">Cancelar ficha</button></form>}
                           {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Hóspede saiu</button></form>}
                         </div>
                         {!atual.checkin_em && <p className="muted small">Ao clicar, o check-in é registrado na FNRH com o horário de agora.</p>}
@@ -171,11 +172,11 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                         <p className="err">O governo recusou ou não respondeu: {atual.fnrh_erro ?? "erro desconhecido"}</p>
                         <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Tentar de novo</button></form>
                       </>
-                    ) : atual.fnrh_concluida ? (
+                    ) : atual.fnrh_concluida && !atual.fnrh_erro ? (
                       <p>Fichas confirmadas no gov.br.</p>
                     ) : integracao ? (
                       <>
-                        <p className="muted small">A ficha ainda não foi enviada ao governo.</p>
+                        <p className="muted small">{atual.fnrh_erro ?? "A ficha ainda não foi enviada ao governo."}</p>
                         <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Enviar ficha agora</button></form>
                       </>
                     ) : (

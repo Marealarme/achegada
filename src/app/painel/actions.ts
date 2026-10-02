@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseEquipe } from "@/lib/supabase";
-import { checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
+import { cancelarReserva, checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
 import { processarEnvio } from "@/lib/fnrh/envio";
 
 export async function criarReserva(_: string, form: FormData): Promise<string> {
@@ -101,6 +101,22 @@ export async function registrarSaida(form: FormData) {
     await db.from("reservas").update({ checkout_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);
   } catch (e) {
     await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Check-out não registrado: ${e.message}` : "Check-out não registrado." }).eq("id", reserva.id);
+  }
+  revalidatePath("/painel");
+}
+
+export async function cancelarFicha(form: FormData) {
+  const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
+  if (!reserva?.fnrh_reserva_id) return;
+  try {
+    await cancelarReserva(reserva.fnrh_reserva_id);
+    await db.from("reservas").update({
+      fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false, fnrh_enviado_em: null,
+      fnrh_erro: `Ficha cancelada no governo em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
+    }).eq("id", reserva.id);
+    await db.from("hospedes_reserva").update({ status_fnrh: "pendente" }).eq("reserva_id", reserva.id);
+  } catch (e) {
+    await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Não foi possível cancelar: ${e.message}` : "Não foi possível cancelar." }).eq("id", reserva.id);
   }
   revalidatePath("/painel");
 }

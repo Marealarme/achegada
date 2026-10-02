@@ -91,3 +91,8 @@ export async function checkinReserva(reservaId: string, quando = new Date()) {
 export async function checkoutReserva(reservaId: string, quando = new Date()) {
   return chamar(`/reservas/${encodeURIComponent(reservaId)}/checkout`, { method: "POST", body: quando.toISOString(), contentType: "text/plain" });
 }
+
+/** POST /reservas/{id}/cancelar — só funciona enquanto a reserva está CRIADA (antes do check-in). */
+export async function cancelarReserva(reservaId: string) {
+  return chamar(`/reservas/${encodeURIComponent(reservaId)}/cancelar`, { method: "POST" });
+}
