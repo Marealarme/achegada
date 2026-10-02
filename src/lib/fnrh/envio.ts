@@ -16,7 +16,7 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
 
   await db.from("reservas").update({ fnrh_status: "enviando", fnrh_erro: null }).eq("id", reservaId);
   try {
-    const { reservaId: idGoverno } = await registrarHospedagem(fila.payload as PayloadHospedagem);
+    const { reservaId: idGoverno } = await registrarHospedagem(normalizar(fila.payload as PayloadHospedagem, reservaId));
     const agora = new Date().toISOString();
     await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: null, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);
     await db.from("hospedes_reserva").update({ status_fnrh: "concluido" }).eq("reserva_id", reservaId);
@@ -29,6 +29,17 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
     await db.from("fnrh_envios").update({ ultimo_erro: msg, tentativas: fila.tentativas + 1 }).eq("reserva_id", reservaId);
     return { ok: false, erro: msg };
   }
+}
+
+/** Número curto e único da reserva para o governo (o exemplo oficial usa códigos curtos, ex.: "RESERVA005"). */
+export const numeroReserva = (id: string) => "LC" + id.replace(/-/g, "").slice(0, 10).toUpperCase();
+
+/** Ajusta pacotes já guardados na fila ao formato do exemplo oficial da documentação. */
+function normalizar(p: PayloadHospedagem, reservaId: string): PayloadHospedagem {
+  return {
+    reserva: { ...p.reserva, numero_reserva: numeroReserva(reservaId) },
+    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({ ...h, situacao_hospede: "PRECHECKIN_PENDENTE" })),
+  };
 }
 
 const idade = (nasc: string, ref: string) => {
@@ -64,7 +75,7 @@ export function montarPayload(args: {
 
   return {
     reserva: {
-      numero_reserva: args.reservaId,
+      numero_reserva: numeroReserva(args.reservaId),
       numero_reserva_ota: "",
       data_entrada: args.checkIn,
       data_saida: args.checkOut,
@@ -76,7 +87,7 @@ export function montarPayload(args: {
       const menor = idade(p.nascimento, args.checkIn) < 18;
       return {
         is_principal: i === 0,
-        situacao_hospede: "PRECHECKIN_REALIZADO",
+        situacao_hospede: "PRECHECKIN_PENDENTE",
         check_in_em: "",
         check_out_em: "",
         dados_pessoais: {

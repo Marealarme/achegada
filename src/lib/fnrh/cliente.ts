@@ -51,9 +51,11 @@ async function chamar(caminho: string, init: { method: string; body?: string; co
   try { json = texto ? JSON.parse(texto) : null; } catch { /* resposta sem JSON */ }
   if (!res.ok) {
     console.error("[FNRH] erro", res.status, caminho, cfg.ambiente, texto.slice(0, 800));
+    const resumo = resumirErro(json);
+    const detalhe = texto.replace(/\s+/g, " ").trim().slice(0, 600);
     const msg = res.status === 401
       ? "Usuário ou senha da API FNRH incorretos."
-      : resumirErro(json) || `Erro ${res.status} no sistema do governo.`;
+      : `${resumo || `Erro ${res.status} no sistema do governo.`}${detalhe && detalhe !== resumo ? ` — resposta do governo: ${detalhe}` : ""}`;
     throw new ErroFnrh(msg, res.status);
   }
   return json;
