@@ -204,7 +204,14 @@ textarea { width: 100%; min-width: 0; font: 400 .95rem var(--body); color: var(-
 .lp-tabela > div:last-child { border-bottom: none; }
 .lp-tabela .cab { font-weight: 700; font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
 .lp-origem .label { color: #7FC4B8; }
-.lp-quem { background: var(--accent); color: #fff; border-radius: 18px; padding: 28px; }
+.lp-quem { background: #007489; color: #fff; border-radius: 18px; padding: 28px; }
 .lp-quem h2 { color: #fff; }
 .lp-quem .label { color: #F3E6C4; }
 .lp-quem p { max-width: 65ch; }
+.lp-logo-inn { width: min(320px, 100%); height: auto; }
+.lp-assina { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lp-assina img { width: 150px; height: auto; border-radius: 8px; }
+.selo-inn { display: inline-flex; align-items: center; gap: 8px; background: #007489; color: #fff; border-radius: 10px; padding: 4px 4px 4px 12px; text-decoration: none; font-size: .78rem; width: fit-content; }
+.selo-inn img { display: block; height: auto; }
+.lp-top .brand { flex-wrap: wrap; }
+@media (max-width: 640px) { .lp-top .selo-inn { display: none; } }

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { entrar } from "./actions";
+import SeloInn from "../SeloInn";
 
 export default function Entrar() {
   const [erro, acao, pendente] = useActionState(entrar, "");
@@ -23,6 +24,7 @@ export default function Entrar() {
         {erro && <p className="err" role="alert">{erro}</p>}
         <button className="btn primary block" type="submit" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</button>
         <p className="muted small">Ainda não usa o A Chegada? <a href="/cadastrar">Crie a conta da sua pousada</a> e teste 30 dias grátis.</p>
+        <SeloInn />
       </form>
     </main>
   );

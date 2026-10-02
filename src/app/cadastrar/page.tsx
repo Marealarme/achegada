@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { supabaseEquipe } from "@/lib/supabase";
 import FormCadastro from "./FormCadastro";
+import SeloInn from "../SeloInn";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Criar conta" };
@@ -18,6 +19,7 @@ export default async function Cadastrar() {
         </div>
         <FormCadastro logado={!!data.user} />
         {!data.user && <p className="muted small">Já tem conta? <Link href="/entrar">Entrar</Link></p>}
+        <SeloInn />
       </div>
     </main>
   );

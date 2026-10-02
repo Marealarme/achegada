@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLANOS, reais, type Plano } from "@/lib/assinatura";
+import SeloInn from "./SeloInn";
 
-const EMPRESA = "Inn Expert Assessoria Hoteleira";
+const EMPRESA = "Inn Experts Assessoria em Hospitalidade";
 const FONE = "(19) 99759-4522";
 const WHATS = "https://wa.me/5519997594522?text=" + encodeURIComponent("Olá! Quero saber mais sobre o A Chegada (check-in online e FNRH automática).");
 
 export const metadata: Metadata = {
   title: { absolute: "A Chegada · check-in online e FNRH automática para pousadas" },
-  description: "O hóspede faz o check-in pelo WhatsApp e a ficha do governo (FNRH) é enviada sozinha. Uma solução Inn Expert Assessoria Hoteleira. 30 dias grátis.",
+  description: "O hóspede faz o check-in pelo WhatsApp e a ficha do governo (FNRH) é enviada sozinha. Uma solução Inn Experts Assessoria em Hospitalidade. 30 dias grátis.",
   openGraph: {
     title: "A Chegada · check-in online e FNRH automática",
-    description: "O hóspede faz o check-in pelo WhatsApp e a ficha do governo sai sozinha. Uma solução Inn Expert Assessoria Hoteleira.",
+    description: "O hóspede faz o check-in pelo WhatsApp e a ficha do governo sai sozinha. Uma solução Inn Experts Assessoria em Hospitalidade.",
     locale: "pt_BR", type: "website",
   },
 };
@@ -68,7 +69,7 @@ export default function Inicio() {
   return (
     <main className="lp">
       <header className="lp-top">
-        <div className="brand"><Lua /><b>A Chegada</b></div>
+        <div className="brand"><Lua /><b>A Chegada</b><SeloInn largura={110} /></div>
         <nav><Link href="/entrar" className="btn ghost">Entrar</Link><Link href="/cadastrar" className="btn primary">Testar 30 dias grátis</Link></nav>
       </header>
 
@@ -80,7 +81,6 @@ export default function Inicio() {
           <Link href="/cadastrar" className="btn primary">Começar 30 dias grátis</Link>
           <a href={WHATS} className="btn ghost" target="_blank" rel="noopener">Falar no WhatsApp</a>
         </div>
-        <span className="muted small">Uma solução {EMPRESA}. Sem fidelidade.</span>
       </section>
 
       <section className="lp-sec">
@@ -141,6 +141,7 @@ export default function Inicio() {
       </section>
 
       <section className="lp-sec lp-quem">
+        <img src="/logo-innexperts.png" alt="Inn Experts — Assessoria em Hospitalidade" width={430} height={140} className="lp-logo-inn" />
         <span className="label">Quem está por trás</span>
         <h2>Criado por quem vive a rotina da hotelaria.</h2>
         <p>O A Chegada é uma solução da <b>{EMPRESA}</b>, especializada em assessoria para meios de hospedagem. Nasceu da operação real de pousada, para resolver o que trava a recepção: fila no check-in, dados espalhados no WhatsApp e a ficha do governo para preencher.</p>
@@ -177,7 +178,7 @@ export default function Inicio() {
       </section>
 
       <footer className="lp-rodape muted small">
-        <span>A Chegada · uma solução {EMPRESA} · {FONE}</span>
+        <span className="lp-assina"><img src="/logo-innexperts.png" alt="Inn Experts" width={172} height={56} /><span>A Chegada · uma solução {EMPRESA} · {FONE}</span></span>
         <Link href="/termos">Termos e privacidade</Link>
       </footer>
     </main>

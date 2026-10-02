@@ -35,7 +35,7 @@ export default function Termos() {
       <p>O hóspede pode pedir à pousada acesso, correção ou exclusão dos seus dados, respeitados os prazos legais de guarda da ficha de hospedagem. A pousada pode solicitar ao A Chegada a exportação ou exclusão dos dados da sua conta.</p>
 
       <h2>8. Contato</h2>
-      <p>Dúvidas sobre estes termos ou sobre dados pessoais: fale com a pousada em que você se hospedou ou com o A Chegada, uma solução Inn Expert Assessoria Hoteleira, pelo WhatsApp (19) 99759-4522.</p>
+      <p>Dúvidas sobre estes termos ou sobre dados pessoais: fale com a pousada em que você se hospedou ou com o A Chegada, uma solução Inn Experts Assessoria em Hospitalidade, pelo WhatsApp (19) 99759-4522.</p>
     </main>
   );
 }
