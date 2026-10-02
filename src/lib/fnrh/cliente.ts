@@ -41,14 +41,16 @@ async function chamar(caminho: string, init: { method: string; body?: string; co
 
   let res: Response;
   try {
-    res = await fetch(cfg.base + caminho, { method: init.method, headers, body: init.body, signal: AbortSignal.timeout(20000), cache: "no-store" });
-  } catch {
-    throw new ErroFnrh("O sistema do governo não respondeu. Tente de novo em alguns minutos.");
+    res = await fetch(cfg.base + caminho, { method: init.method, headers, body: init.body, signal: AbortSignal.timeout(30000), cache: "no-store" });
+  } catch (e) {
+    console.error("[FNRH] sem resposta", caminho, cfg.ambiente, e instanceof Error ? e.name + ": " + e.message : e);
+    throw new ErroFnrh("O sistema do governo não respondeu em 30 segundos. Tente de novo em alguns minutos.");
   }
   const texto = await res.text();
   let json: unknown = null;
   try { json = texto ? JSON.parse(texto) : null; } catch { /* resposta sem JSON */ }
   if (!res.ok) {
+    console.error("[FNRH] erro", res.status, caminho, cfg.ambiente, texto.slice(0, 800));
     const msg = res.status === 401
       ? "Usuário ou senha da API FNRH incorretos."
       : resumirErro(json) || `Erro ${res.status} no sistema do governo.`;

@@ -8,8 +8,10 @@ import { sair } from "../entrar/actions";
 import { cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { BotoesMensagem, NovaReserva } from "./Componentes";
+import BotaoAcao from "./BotaoAcao";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export const metadata: Metadata = { title: "Painel" };
 
 type Reserva = {
@@ -24,7 +26,7 @@ type Reserva = {
 function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: string | null; fnrh_status?: string; checkin_em?: string | null; checkout_em?: string | null }) {
   if (r.checkout_em) return { cls: "ok", txt: "Saiu" };
   if (r.checkin_em) return { cls: "ok", txt: "Hospedado" };
-  if (r.fnrh_status === "erro") return { cls: "bad", txt: "Erro na ficha" };
+  if (r.fnrh_status === "erro" || r.fnrh_status === "enviando") return { cls: "bad", txt: "Erro na ficha" };
   if (r.fnrh_status === "enviado") return { cls: "ok", txt: "Ficha enviada" };
   if (r.fnrh_concluida) return { cls: "ok", txt: "Pronto" };
   if (r.pre) return { cls: "pre", txt: "Pré-chegada feita" };
@@ -161,28 +163,28 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                         <p>Ficha registrada no governo{atual.checkin_em ? ` · check-in em ${quando(atual.checkin_em)}` : ""}{atual.checkout_em ? ` · check-out em ${quando(atual.checkout_em)}` : ""}.</p>
                         {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Hóspede chegou</button></form>}
-                          {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><button className="btn ghost" type="submit">Cancelar ficha</button></form>}
-                          {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Hóspede saiu</button></form>}
+                          {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Registrando no governo…">Hóspede chegou</BotaoAcao></form>}
+                          {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn ghost" aguardando="Cancelando…">Cancelar ficha</BotaoAcao></form>}
+                          {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Registrando no governo…">Hóspede saiu</BotaoAcao></form>}
                         </div>
                         {!atual.checkin_em && <p className="muted small">Ao clicar, o check-in é registrado na FNRH com o horário de agora.</p>}
                       </>
-                    ) : atual.fnrh_status === "erro" ? (
+                    ) : atual.fnrh_status === "erro" || atual.fnrh_status === "enviando" ? (
                       <>
-                        <p className="err">O governo recusou ou não respondeu: {atual.fnrh_erro ?? "erro desconhecido"}</p>
-                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn primary" type="submit">Tentar de novo</button></form>
+                        <p className="err">{atual.fnrh_status === "enviando" ? "O envio anterior foi interrompido antes de o governo responder." : `O governo recusou ou não respondeu: ${atual.fnrh_erro ?? "erro desconhecido"}`}</p>
+                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Enviando ao governo… (até 30s)">Tentar de novo</BotaoAcao></form>
                       </>
                     ) : atual.fnrh_concluida && !atual.fnrh_erro ? (
                       <p>Fichas confirmadas no gov.br.</p>
                     ) : integracao ? (
                       <>
                         <p className="muted small">{atual.fnrh_erro ?? "A ficha ainda não foi enviada ao governo."}</p>
-                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Enviar ficha agora</button></form>
+                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Enviando ao governo… (até 30s)">Enviar ficha agora</BotaoAcao></form>
                       </>
                     ) : (
                       <>
                         <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui.</p>
-                        <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><button className="btn" type="submit">Marcar FNRH concluída</button></form>
+                        <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao>Marcar FNRH concluída</BotaoAcao></form>
                       </>
                     )}
                   </div>

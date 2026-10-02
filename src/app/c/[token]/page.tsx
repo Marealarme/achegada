@@ -7,6 +7,7 @@ import AcoesFinais from "./AcoesFinais";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export const metadata: Metadata = { title: "Check-in online", robots: { index: false, follow: false } };
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
