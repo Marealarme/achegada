@@ -150,7 +150,7 @@ insert into public.pousadas (nome, slug, regras_da_casa, termo_pet)
 values (
   'Lua Chalés', 'lua',
   E'Silêncio das 23h às 8h na área da piscina e dos chalés.\nChurrasqueira de uso exclusivo do chalé, com limpeza ao final.\nVisitantes somente com autorização da recepção.',
-  E'O pet deve permanecer sob responsabilidade e supervisão do tutor.\nDanos causados pelo pet são de responsabilidade do hóspede.'
+  E'Pets são super bem-vindos!\nO pet deve permanecer sob responsabilidade e supervisão do tutor.'
 )
 on conflict (slug) do nothing;
 
