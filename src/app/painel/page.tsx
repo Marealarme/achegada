@@ -119,7 +119,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
               {atual.fnrh_status === "enviado" ? (
                 <>
                   <p>Ficha registrada no governo{atual.checkin_em ? ` · check-in em ${quando(atual.checkin_em)}` : ""}{atual.checkout_em ? ` · check-out em ${quando(atual.checkout_em)}` : ""}.</p>
-                  {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
+                  {atual.fnrh_erro && <p className={atual.fnrh_erro.startsWith("Aviso:") ? "muted small" : "err"}>{atual.fnrh_erro}</p>}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Registrando no governo…">Hóspede chegou</BotaoAcao></form>}
                     {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn ghost" aguardando="Cancelando…">Cancelar ficha</BotaoAcao></form>}

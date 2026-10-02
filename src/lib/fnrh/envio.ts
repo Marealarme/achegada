@@ -17,14 +17,18 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
   try {
     const pacote = normalizar(fila.payload as PayloadHospedagem, reservaId);
     let idGoverno: string;
+    let aviso: string | null = null;
     try {
       ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, pacote));
     } catch (e) {
       if (!(e instanceof ErroFnrh) || e.status !== 400 || !/situa[cç][aã]o/i.test(e.message)) throw e;
       ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, comoPendente(pacote)));
+      // guarda o motivo da recusa para entendermos por que foi como "pendente" (sem motivo/transporte)
+      aviso = mascarar(`Aviso: ficha aceita como pré-check-in pendente, sem motivo da viagem e transporte. Resposta do governo à versão completa: ${e.message}`).slice(0, 900);
+      console.warn("[FNRH] plano B (pendente):", aviso);
     }
     const agora = new Date().toISOString();
-    await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: null, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);
+    await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: aviso, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);
     await db.from("hospedes_reserva").update({ status_fnrh: "concluido" }).eq("reserva_id", reservaId);
     await db.from("fnrh_envios").update({ payload: null, enviado_em: agora, ultimo_erro: null, tentativas: fila.tentativas + 1 }).eq("reserva_id", reservaId);
     return { ok: true };
