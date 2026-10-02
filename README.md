@@ -14,7 +14,7 @@ Check-in online e pré-chegada de hóspedes, integrado à FNRH Digital. Piloto: 
    - `NEXT_PUBLIC_SUPABASE_URL` (Supabase → Project Settings → API → Project URL)
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (mesma tela, chave `anon` / publishable)
    - `SUPABASE_SERVICE_ROLE_KEY` (mesma tela, chave `service_role` / secret — **nunca compartilhe**)
-   - `NEXT_PUBLIC_SITE_URL` (o endereço final, ex.: `https://chegada.vercel.app`)
+   - `NEXT_PUBLIC_SITE_URL` = `https://achegada.marealarme.com.br`
 5. Deploy. Acesse `/entrar` e faça login.
 
 ## Rodar no computador
@@ -28,3 +28,9 @@ npm run dev
 - Importar reservas por planilha do Hotel Link.
 - Fase 2: integração com a API FNRH v2 (`src/lib/fnrh/`).
 - Leitura de documento por foto (OCR), sem guardar a imagem.
+
+## Domínio: achegada.marealarme.com.br
+1. Vercel → projeto → Settings → Domains → adicionar `achegada.marealarme.com.br`. A Vercel mostra o valor do CNAME.
+2. Hostinger → Domínios → marealarme.com.br → DNS / Nameservers → adicionar registro:
+   - Tipo: `CNAME` · Nome: `achegada` · Aponta para: o valor mostrado pela Vercel · TTL: padrão
+3. Aguarde a Vercel marcar o domínio como válido (minutos a algumas horas). O site atual não é afetado.
