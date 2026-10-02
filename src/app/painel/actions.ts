@@ -67,6 +67,15 @@ export async function marcarLinkEnviado(id: string) {
 
 // ---------- Fase 2: ficha FNRH automática ----------
 
+/** O governo responde 400 "Situação: Cancelada" quando a ficha já foi cancelada (ex.: direto no site da FNRH). */
+const jaCanceladaNoGoverno = (e: unknown) => e instanceof ErroFnrh && /situa[cç][aã]o:\s*cancelad/i.test(e.message);
+
+/** Cancela no governo; se já estava cancelada lá, conta como sucesso. */
+async function cancelarNoGoverno(pousadaId: string, fnrhReservaId: string) {
+  try { await cancelarReserva(pousadaId, fnrhReservaId); }
+  catch (e) { if (!jaCanceladaNoGoverno(e)) throw e; }
+}
+
 /** Confere (com as regras de segurança da equipe) que a reserva é da pousada de quem está logado. */
 async function reservaDaEquipe(id: string) {
   const db = await supabaseEquipe();
@@ -110,7 +119,7 @@ export async function cancelarFicha(form: FormData) {
   const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
   if (!reserva?.fnrh_reserva_id) return;
   try {
-    await cancelarReserva(reserva.pousada_id, reserva.fnrh_reserva_id);
+    await cancelarNoGoverno(reserva.pousada_id, reserva.fnrh_reserva_id);
     await db.from("reservas").update({
       fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false, fnrh_enviado_em: null,
       fnrh_erro: `Ficha cancelada no governo em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
@@ -140,7 +149,7 @@ export async function cancelarCard(form: FormData) {
   }
   if (reserva.fnrh_reserva_id) {
     try {
-      await cancelarReserva(reserva.pousada_id, reserva.fnrh_reserva_id);
+      await cancelarNoGoverno(reserva.pousada_id, reserva.fnrh_reserva_id);
     } catch (e) {
       await db.from("reservas").update({
         fnrh_erro: `A reserva não foi cancelada porque a ficha do governo não pôde ser cancelada: ${e instanceof ErroFnrh ? e.message : "sem resposta"}. Tente de novo.`,
@@ -150,7 +159,7 @@ export async function cancelarCard(form: FormData) {
     }
   }
   const { error } = await db.from("reservas").update({
-    cancelada_em: new Date().toISOString(), cancelada_por: auth.user.id,
+    cancelada_em: new Date().toISOString(), cancelada_por: auth.user.id, fnrh_erro: null,
     ...(reserva.fnrh_reserva_id ? { fnrh_status: "nao_enviado", fnrh_reserva_id: null, fnrh_concluida: false } : {}),
   }).eq("id", reserva.id);
   if (error) {
@@ -215,7 +224,7 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
     if (/cancel/i.test(r.status) && atualCard && !atualCard.checkin_em) {
       // cancelada no Hotel Link: cancela o card (e a ficha no governo, se já tinha ido)
       if (atualCard.fnrh_reserva_id) {
-        try { await cancelarReserva(pousadaId, atualCard.fnrh_reserva_id); }
+        try { await cancelarNoGoverno(pousadaId, atualCard.fnrh_reserva_id); }
         catch { ignoradas.push(`${quem}: cancelada no Hotel Link, mas a ficha do governo não pôde ser cancelada (cancele pelo card)`); continue; }
       }
       const { error } = await db.from("reservas").update({
