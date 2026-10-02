@@ -132,8 +132,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                       <dt>Chega às</dt><dd>{p.horario_chegada?.slice(0, 5) ?? "—"}</dd>
                       <dt>Placa</dt><dd className="mono">{p.placa ?? "—"}</dd>
                       <dt>Pet</dt><dd>{p.pet_tem ? `${p.pet_nome} · ${p.pet_especie}, porte ${p.pet_porte} · termo aceito` : "Sem pet"}</dd>
-                      <dt>Late check-out</dt><dd>{p.late_checkout ? "Pediu (confirmar valor)" : "Não"}</dd>
-                      <dt>Regras da casa</dt><dd>Aceitas</dd>
+                      <dt>Regras e cancelamento</dt><dd>Aceitos</dd>
                       <dt>Ofertas</dt><dd>{titular?.consentimento_marketing_em ? "Aceitou receber" : "Não aceitou"}</dd>
                     </dl>
                   </div>

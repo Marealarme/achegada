@@ -7,10 +7,10 @@ import { enviarCheckin } from "./actions";
 type Pessoa = { nome: string; cpf: string; nascimento: string };
 type Props = {
   token: string; titular: string; unidade: string; checkIn: string; checkOut: string; noites: number;
-  adultos: number; criancas: number; regras: string[]; termoPet: string[];
+  adultos: number; criancas: number; regras: string[]; termoPet: string[]; cancelamento: string[];
 };
 
-const PASSOS = ["Boas-vindas", "Quem vem", "Chegada", "Extras", "Regras", "Ficha do governo", "Pronto"];
+const PASSOS = ["Boas-vindas", "Quem vem", "Chegada", "Sua estadia", "Regras", "Ficha do governo", "Pronto"];
 
 export default function CheckinFlow(p: Props) {
   const total = p.adultos + p.criancas;
@@ -23,7 +23,6 @@ export default function CheckinFlow(p: Props) {
   const [horario, setHorario] = useState("");
   const [placa, setPlaca] = useState("");
   const [pet, setPet] = useState({ tem: false, nome: "", especie: "Cachorro", porte: "Pequeno" });
-  const [late, setLate] = useState(false);
   const [aceiteRegras, setAceiteRegras] = useState(false);
   const [aceitePet, setAceitePet] = useState(false);
   const [marketing, setMarketing] = useState(false);
@@ -49,7 +48,7 @@ export default function CheckinFlow(p: Props) {
     }
     if (passo === 2 && pet.tem && !pet.nome.trim()) return "Informe o nome do pet.";
     if (passo === 4) {
-      if (!aceiteRegras) return "Para seguir, aceite as regras da casa.";
+      if (!aceiteRegras) return p.cancelamento.length > 0 ? "Para seguir, aceite as regras da casa e a política de cancelamento." : "Para seguir, aceite as regras da casa.";
       if (pet.tem && !aceitePet) return "Para hospedar o pet, aceite o termo pet.";
     }
     return "";
@@ -61,7 +60,7 @@ export default function CheckinFlow(p: Props) {
     if (e) return;
     if (passo === 5) {
       iniciar(async () => {
-        const res = await enviarCheckin({ token: p.token, pessoas, horario, placa, pet, lateCheckout: late, aceiteRegras, aceitePet, marketing });
+        const res = await enviarCheckin({ token: p.token, pessoas, horario, placa, pet, lateCheckout: false, aceiteRegras, aceitePet, marketing });
         if (res.ok) setPasso(6);
         else setErro(res.erro);
       });
@@ -168,10 +167,7 @@ export default function CheckinFlow(p: Props) {
         {passo === 3 && (
           <>
             <div className="note"><b>Café da manhã incluso</b><span className="muted">Já faz parte da sua reserva e é entregue na porta do chalé.</span></div>
-            <label className="extra" htmlFor="late">
-              <input id="late" type="checkbox" checked={late} onChange={(ev) => setLate(ev.target.checked)} />
-              <span><b>Quero pedir late check-out</b><br /><span className="muted small">Sujeito à disponibilidade; a recepção confirma o valor</span></span>
-            </label>
+            <div className="note"><b>Early check-in e late check-out</b><span className="muted">Dependem de disponibilidade e devem ser solicitados diretamente à nossa gerente, pelo WhatsApp da pousada.</span></div>
           </>
         )}
 
@@ -181,7 +177,13 @@ export default function CheckinFlow(p: Props) {
               <b>Regras da casa</b>
               <ul>{p.regras.map((r) => <li key={r}>{r}</li>)}</ul>
             </div>
-            <label className="check"><input id="aceite-regras" type="checkbox" checked={aceiteRegras} onChange={(ev) => setAceiteRegras(ev.target.checked)} /><span>Li e aceito as regras da casa.</span></label>
+            {p.cancelamento.length > 0 && (
+              <div className="note">
+                <b>Política de cancelamento</b>
+                <ul>{p.cancelamento.map((r) => <li key={r}>{r}</li>)}</ul>
+              </div>
+            )}
+            <label className="check"><input id="aceite-regras" type="checkbox" checked={aceiteRegras} onChange={(ev) => setAceiteRegras(ev.target.checked)} /><span>{p.cancelamento.length > 0 ? "Li e aceito as regras da casa e a política de cancelamento." : "Li e aceito as regras da casa."}</span></label>
             {pet.tem && (
               <>
                 <div className="note"><b>Termo pet</b><ul>{p.termoPet.map((r) => <li key={r}>{r}</li>)}</ul></div>
