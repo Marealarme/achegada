@@ -67,7 +67,7 @@ export function lerArquivoHotelLink(bytes: Uint8Array): { reservas: ReservaHL[];
     const ws = wb.Sheets[wb.SheetNames[0]];
     linhas = (XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" }) as unknown[][]).map((r) => r.map((c) => String(c ?? "")));
   } catch {
-    return { reservas: [], erro: "Não consegui abrir este arquivo. Exporte de novo no Hotel Link e envie o arquivo .xls." };
+    return { reservas: [], erro: "Não consegui abrir este arquivo. Use a planilha modelo do painel." };
   }
   // Caso comum: o .xls foi aberto no Numbers/Excel e o XML virou texto espalhado nas células
   const juntado = linhas.flat().filter(Boolean).join("\n");
@@ -77,7 +77,7 @@ export function lerArquivoHotelLink(bytes: Uint8Array): { reservas: ReservaHL[];
 
 export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[]; erro?: string } {
   if (!/<Workbook/i.test(conteudo) || !/<Row/i.test(conteudo))
-    return { reservas: [], erro: "Este arquivo não parece a exportação de reservas do Hotel Link." };
+    return { reservas: [], erro: "Este arquivo não parece uma lista de reservas." };
   const linhas = [...conteudo.matchAll(/<Row[^>]*>([\s\S]*?)<\/Row>/g)].map((m) =>
     [...m[1].matchAll(/<Data[^>]*>([\s\S]*?)<\/Data>/g)].map((d) => texto(d[1]))
   );
@@ -86,7 +86,7 @@ export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[
 
 function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } {
   const inicio = todas.findIndex((l) => l.some((c) => /^refer[eê]ncia/i.test(c.trim())));
-  if (inicio < 0) return { reservas: [], erro: "Não encontrei as colunas da lista de reservas. Confira se é a lista de reservas do Hotel Link." };
+  if (inicio < 0) return { reservas: [], erro: "Não encontrei as colunas da lista de reservas. Use a planilha modelo do painel." };
   const cab = todas[inicio].map((c) => c.trim());
   const linhas = todas.slice(inicio);
   const col = (nome: string) => cab.findIndex((c) => c.toLowerCase().startsWith(nome.toLowerCase()));
@@ -95,7 +95,7 @@ function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } 
     entrada: col("Check-in"), saida: col("Check-out"), status: col("Status"), quarto: col("Nome/Número do Quarto"), pessoas: col("Número Total de Hóspedes"),
   };
   if (i.ref < 0 || i.hospede < 0 || i.entrada < 0 || i.saida < 0)
-    return { reservas: [], erro: "Não encontrei as colunas de referência, hóspede e datas. Confira se é a lista de reservas do Hotel Link." };
+    return { reservas: [], erro: "Não encontrei as colunas de referência, hóspede e datas. Use a planilha modelo do painel." };
 
   const reservas: ReservaHL[] = [];
   for (const c of linhas.slice(1)) {

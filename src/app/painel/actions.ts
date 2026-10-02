@@ -4,7 +4,8 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
-import { ehOta, lerArquivoHotelLink } from "@/lib/hotellink";
+import { ehOta } from "@/lib/hotellink";
+import { lerPlanilhaReservas } from "@/lib/importacao";
 import { cancelarReserva, checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
 import { processarEnvio } from "@/lib/fnrh/envio";
 
@@ -173,10 +174,10 @@ export async function cancelarCard(form: FormData) {
   redirect("/painel");
 }
 
-// ---------- Importação da lista de reservas do Hotel Link ----------
+// ---------- Importação da planilha de reservas ----------
 export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[] };
 
-export async function importarHotelLink(_: ResultadoImportacao | null, form: FormData): Promise<ResultadoImportacao> {
+export async function importarReservas(_: ResultadoImportacao | null, form: FormData): Promise<ResultadoImportacao> {
   const equipe = await supabaseEquipe();
   const { data: auth } = await equipe.auth.getUser();
   if (!auth.user) return { ok: false, mensagem: "Sua sessão expirou. Entre de novo." };
@@ -184,17 +185,17 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
   if (!perfil) return { ok: false, mensagem: "Seu usuário ainda não está ligado a uma pousada." };
 
   const arquivo = form.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, mensagem: "Escolha o arquivo exportado do Hotel Link." };
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, mensagem: "Escolha a planilha de reservas." };
   if (arquivo.size > 3_000_000) return { ok: false, mensagem: "Arquivo grande demais. Exporte só as próximas semanas." };
 
-  const { reservas, erro } = lerArquivoHotelLink(new Uint8Array(await arquivo.arrayBuffer()));
+  const { reservas, erro, avisos } = lerPlanilhaReservas(new Uint8Array(await arquivo.arrayBuffer()));
   if (erro) return { ok: false, mensagem: erro };
 
   const db = supabaseServico(); // só após confirmar a pousada de quem está logado
   const pousadaId = perfil.pousada_id as string;
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
-  // chalés: casa pelo nome; cria os que ainda não existem (nomes reais do Hotel Link)
+  // chalés: casa pelo nome; cria os que ainda não existem (nomes como vieram na planilha)
   const { data: unidadesAtuais } = await db.from("unidades").select("id, nome").eq("pousada_id", pousadaId);
   const chave = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
   const unidades = new Map((unidadesAtuais ?? []).map((u) => [chave(u.nome), u.id as string]));
@@ -216,16 +217,16 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
   const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as unknown as Existente]));
 
   let criadas = 0, atualizadas = 0, canceladas = 0;
-  const ignoradas: string[] = [];
+  const ignoradas: string[] = [...(avisos ?? [])];
   for (const r of reservas) {
     const quem = r.titular || r.referencia;
     const atualCard = porRef.get(r.referencia);
     if (atualCard?.cancelada_em) { ignoradas.push(`${quem}: card cancelado no painel (mantido cancelado)`); continue; }
     if (/cancel/i.test(r.status) && atualCard && !atualCard.checkin_em) {
-      // cancelada no Hotel Link: cancela o card (e a ficha no governo, se já tinha ido)
+      // cancelada na planilha: cancela o card (e a ficha no governo, se já tinha ido)
       if (atualCard.fnrh_reserva_id) {
         try { await cancelarNoGoverno(pousadaId, atualCard.fnrh_reserva_id); }
-        catch { ignoradas.push(`${quem}: cancelada no Hotel Link, mas a ficha do governo não pôde ser cancelada (cancele pelo card)`); continue; }
+        catch { ignoradas.push(`${quem}: cancelada na planilha, mas a ficha do governo não pôde ser cancelada (cancele pelo card)`); continue; }
       }
       const { error } = await db.from("reservas").update({
         cancelada_em: new Date().toISOString(), cancelada_por: auth.user.id,
@@ -264,7 +265,7 @@ export async function importarHotelLink(_: ResultadoImportacao | null, form: For
 
   revalidatePath("/painel");
   const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
-  if (canceladas) partes.push(`${canceladas} cancelada(s) no Hotel Link`);
+  if (canceladas) partes.push(`${canceladas} cancelada(s) na planilha`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
   return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.`, detalhes: ignoradas };
 }

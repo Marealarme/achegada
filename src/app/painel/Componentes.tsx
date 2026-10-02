@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { criarReserva, importarHotelLink, marcarLinkEnviado } from "./actions";
+import { criarReserva, importarReservas, marcarLinkEnviado } from "./actions";
 
 type Unidade = { id: string; nome: string };
 
@@ -62,18 +62,18 @@ export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: s
   );
 }
 
-/** Importa a lista de reservas exportada do Hotel Link e cria os cards. */
-export function ImportarHotelLink() {
+/** Importa a planilha de reservas (modelo do A Chegada ou exportação do sistema) e cria os cards. */
+export function ImportarReservas() {
   const [aberto, setAberto] = useState(false);
-  const [res, acao, pendente] = useActionState(importarHotelLink, null);
+  const [res, acao, pendente] = useActionState(importarReservas, null);
   if (!aberto)
-    return <button className="btn" type="button" onClick={() => setAberto(true)}>Importar do Hotel Link</button>;
+    return <button className="btn" type="button" onClick={() => setAberto(true)}>Importar reservas</button>;
   return (
     <form action={acao} className="newform" style={{ width: "100%" }}>
       <div className="field">
-        <label htmlFor="arquivo">Arquivo de reservas do Hotel Link</label>
+        <label htmlFor="arquivo">Planilha de reservas</label>
         <input id="arquivo" name="arquivo" type="file" required />
-        <span className="hint">No Hotel Link: Reservas → exportar lista. Aceita o arquivo como baixou ou depois de aberto no Excel/Numbers. Reservas já importadas não duplicam.</span>
+        <span className="hint">Use a <a href="/painel/modelo-reservas" download>planilha modelo</a>: baixe, preencha uma linha por reserva e envie aqui (.xlsx ou .csv). Também aceita a lista exportada de alguns sistemas de reservas. Reservas já importadas não duplicam.</span>
       </div>
       {res && <p className={res.ok ? "" : "err"} role="status">{res.mensagem}</p>}
       {res?.detalhes && res.detalhes.length > 0 && (

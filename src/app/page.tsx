@@ -26,7 +26,7 @@ const DORES = [
 ];
 
 const PASSOS = [
-  { t: "Importe as reservas", d: "Suba a lista exportada do seu sistema (ex.: Hotel Link) e os cards aparecem sozinhos. Ou crie a reserva em 30 segundos." },
+  { t: "Importe as reservas", d: "Suba a planilha de reservas (tem modelo pronto) ou a lista exportada do seu sistema, e os cards aparecem sozinhos. Ou crie a reserva em 30 segundos." },
   { t: "Envie o link no WhatsApp", d: "Um clique abre o WhatsApp com a mensagem pronta e o link do check-in daquele hóspede." },
   { t: "O hóspede faz o check-in", d: "No celular, antes de chegar: ele e os acompanhantes, endereço pelo CEP, horário, placa, pet e aceite das regras." },
   { t: "A ficha vai para o governo", d: "A FNRH é registrada sozinha pela integração oficial. Na chegada e na saída, um botão avisa o governo." },

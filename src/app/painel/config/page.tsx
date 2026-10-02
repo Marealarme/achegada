@@ -61,7 +61,7 @@ export default async function Config() {
 
         <section className="panel">
           <h2>Chalés e quartos</h2>
-          <p className="muted small">Ao importar do Hotel Link, os chalés são criados sozinhos com os nomes de lá.</p>
+          <p className="muted small">Ao importar a planilha de reservas, os chalés são criados sozinhos com os nomes que estiverem nela.</p>
           <div className="people">
             {(unidades ?? []).map((u) => (
               <div className="linha-lista" key={u.id}>
