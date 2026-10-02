@@ -47,7 +47,7 @@ export async function criarReserva(_: string, form: FormData): Promise<string> {
   if (error || !data) return "Não foi possível criar a reserva. Tente de novo.";
 
   revalidatePath("/painel");
-  redirect(`/painel?r=${data.id}`);
+  redirect(`/painel?r=${data.id}#r-${data.id}`);
 }
 
 export async function marcarFnrh(form: FormData) {

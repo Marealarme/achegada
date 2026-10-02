@@ -74,13 +74,89 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     ...r,
     pre: Array.isArray(r.pre_chegadas) ? r.pre_chegadas[0] ?? null : (r.pre_chegadas as Reserva["pre_chegadas"] & object) ?? null,
   }));
-  const atual = reservas.find((x) => x.id === selecionada) ?? reservas[0];
+  const atual = reservas.find((x) => x.id === selecionada);
 
   const h = await headers();
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;
   const feitas = reservas.filter((r) => r.pre).length;
   const prontas = reservas.filter((r) => r.fnrh_concluida).length;
 
+  const detalhe = (atual: (typeof reservas)[number]) => {
+    const st = status(atual);
+    const p = atual.pre as null | { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean };
+    const link = `${base}/c/${atual.token}`;
+    const msg = mensagemWhatsApp({ titular: atual.titular, unidade: atual.unidades?.nome ?? "seu chalé", check_in: atual.check_in, check_out: atual.check_out, link }, pousadaNome);
+    const titular = atual.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes;
+    return (
+      <section className="detalhe" aria-label="Detalhe da reserva">
+        <div className="panel-head"><div><span className="label">{atual.unidades?.nome ?? "Sem chalé"}</span><h2>{atual.titular}</h2></div><span className={`pill ${st.cls}`}>{st.txt}</span></div>
+        <dl className="kv">
+          <dt>Estadia</dt><dd>{dataCurta(atual.check_in)} a {dataCurta(atual.check_out)} · {noites(atual.check_in, atual.check_out)} noites</dd>
+          <dt>Hóspedes</dt><dd>{atual.adultos} adultos{atual.criancas ? ` e ${atual.criancas} criança(s)` : ""}</dd>
+          <dt>WhatsApp</dt><dd className="mono">{atual.telefone ?? "—"}</dd>
+        </dl>
+        <div className="field">
+          <span className="label">Mensagem para o hóspede</span>
+          <div className="msg">{msg}</div>
+          <BotoesMensagem reservaId={atual.id} mensagem={msg} telefone={atual.telefone} />
+          {atual.link_enviado_em && <p className="muted small">Link enviado em {quando(atual.link_enviado_em)}.</p>}
+        </div>
+        {p ? (
+          <>
+            <div className="field"><span className="label">Pré-chegada</span>
+              <dl className="kv">
+                <dt>Chega às</dt><dd>{p.horario_chegada?.slice(0, 5) ?? "—"}</dd>
+                <dt>Placa</dt><dd className="mono">{p.placa ?? "—"}</dd>
+                <dt>Pet</dt><dd>{p.pet_tem ? `${p.pet_nome} · ${p.pet_especie}, porte ${p.pet_porte} · termo aceito` : "Sem pet"}</dd>
+                <dt>Regras e cancelamento</dt><dd>Aceitos</dd>
+                <dt>Ofertas</dt><dd>{titular?.consentimento_marketing_em ? "Aceitou receber" : "Não aceitou"}</dd>
+              </dl>
+            </div>
+            <div className="field"><span className="label">Hóspedes cadastrados</span>
+              <div className="people">
+                {atual.hospedes_reserva.map((x, i) => (
+                  <div className="person" key={i}><span>{x.hospedes?.nome}</span><span className="mono muted">{x.hospedes?.cpf ? `CPF ${cpfMascarado(x.hospedes.cpf)}` : "Passaporte"}</span></div>
+                ))}
+              </div>
+            </div>
+            <div className="field"><span className="label">Ficha FNRH</span>
+              {atual.fnrh_status === "enviado" ? (
+                <>
+                  <p>Ficha registrada no governo{atual.checkin_em ? ` · check-in em ${quando(atual.checkin_em)}` : ""}{atual.checkout_em ? ` · check-out em ${quando(atual.checkout_em)}` : ""}.</p>
+                  {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Registrando no governo…">Hóspede chegou</BotaoAcao></form>}
+                    {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn ghost" aguardando="Cancelando…">Cancelar ficha</BotaoAcao></form>}
+                    {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Registrando no governo…">Hóspede saiu</BotaoAcao></form>}
+                  </div>
+                  {!atual.checkin_em && <p className="muted small">Ao clicar, o check-in é registrado na FNRH com o horário de agora.</p>}
+                </>
+              ) : atual.fnrh_status === "erro" || atual.fnrh_status === "enviando" ? (
+                <>
+                  <p className="err">{atual.fnrh_status === "enviando" ? "O envio anterior foi interrompido antes de o governo responder." : `O governo recusou ou não respondeu: ${atual.fnrh_erro ?? "erro desconhecido"}`}</p>
+                  <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Enviando ao governo… (até 30s)">Tentar de novo</BotaoAcao></form>
+                </>
+              ) : atual.fnrh_concluida && !atual.fnrh_erro ? (
+                <p>Fichas confirmadas no gov.br.</p>
+              ) : integracao ? (
+                <>
+                  <p className="muted small">{atual.fnrh_erro ?? "A ficha ainda não foi enviada ao governo."}</p>
+                  <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Enviando ao governo… (até 30s)">Enviar ficha agora</BotaoAcao></form>
+                </>
+              ) : (
+                <>
+                  <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui.</p>
+                  <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao>Marcar FNRH concluída</BotaoAcao></form>
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="empty">O hóspede ainda não fez a pré-chegada. Envie o link pelo WhatsApp; se precisar, reenvie na véspera.</p>
+        )}
+      </section>
+    );
+  };
   return (
     <main className="wrap">
       <header className="top">
@@ -97,7 +173,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <div className="kpi"><span className="label">Fichas FNRH prontas</span><strong>{prontas} de {reservas.length}</strong></div>
       </section>
 
-      <div className="desk">
+      <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
           <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><ImportarHotelLink /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
@@ -107,94 +183,23 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
               {reservas.map((x) => {
                 const st = status(x);
                 const dt = partesData(x.check_in);
+                const aberta = atual?.id === x.id;
                 return (
-                  <Link key={x.id} href={`/painel?r=${x.id}`} className="row" aria-current={atual?.id === x.id}>
-                    <span className="date"><b>{dt.dia}</b><span>{dt.mes}</span></span>
-                    <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
-                    <span className={`pill ${st.cls}`}>{st.txt}</span>
-                  </Link>
+                  <div key={x.id} id={`r-${x.id}`} className={aberta ? "item aberto" : "item"}>
+                    <Link href={aberta ? "/painel" : `/painel?r=${x.id}#r-${x.id}`} className="row" aria-current={aberta} aria-expanded={aberta}>
+                      <span className="date"><b>{dt.dia}</b><span>{dt.mes}</span></span>
+                      <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
+                      <span className={`pill ${st.cls}`}>{st.txt}</span>
+                    </Link>
+                    {aberta && detalhe(x)}
+                  </div>
                 );
               })}
             </div>
           )}
         </section>
 
-        {atual && (() => {
-          const st = status(atual);
-          const p = atual.pre as null | { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean };
-          const link = `${base}/c/${atual.token}`;
-          const msg = mensagemWhatsApp({ titular: atual.titular, unidade: atual.unidades?.nome ?? "seu chalé", check_in: atual.check_in, check_out: atual.check_out, link }, pousadaNome);
-          const titular = atual.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes;
-          return (
-            <section className="panel" aria-label="Detalhe da reserva">
-              <div className="panel-head"><div><span className="label">{atual.unidades?.nome ?? "Sem chalé"}</span><h2>{atual.titular}</h2></div><span className={`pill ${st.cls}`}>{st.txt}</span></div>
-              <dl className="kv">
-                <dt>Estadia</dt><dd>{dataCurta(atual.check_in)} a {dataCurta(atual.check_out)} · {noites(atual.check_in, atual.check_out)} noites</dd>
-                <dt>Hóspedes</dt><dd>{atual.adultos} adultos{atual.criancas ? ` e ${atual.criancas} criança(s)` : ""}</dd>
-                <dt>WhatsApp</dt><dd className="mono">{atual.telefone ?? "—"}</dd>
-              </dl>
-              <div className="field">
-                <span className="label">Mensagem para o hóspede</span>
-                <div className="msg">{msg}</div>
-                <BotoesMensagem reservaId={atual.id} mensagem={msg} telefone={atual.telefone} />
-                {atual.link_enviado_em && <p className="muted small">Link enviado em {quando(atual.link_enviado_em)}.</p>}
-              </div>
-              {p ? (
-                <>
-                  <div className="field"><span className="label">Pré-chegada</span>
-                    <dl className="kv">
-                      <dt>Chega às</dt><dd>{p.horario_chegada?.slice(0, 5) ?? "—"}</dd>
-                      <dt>Placa</dt><dd className="mono">{p.placa ?? "—"}</dd>
-                      <dt>Pet</dt><dd>{p.pet_tem ? `${p.pet_nome} · ${p.pet_especie}, porte ${p.pet_porte} · termo aceito` : "Sem pet"}</dd>
-                      <dt>Regras e cancelamento</dt><dd>Aceitos</dd>
-                      <dt>Ofertas</dt><dd>{titular?.consentimento_marketing_em ? "Aceitou receber" : "Não aceitou"}</dd>
-                    </dl>
-                  </div>
-                  <div className="field"><span className="label">Hóspedes cadastrados</span>
-                    <div className="people">
-                      {atual.hospedes_reserva.map((x, i) => (
-                        <div className="person" key={i}><span>{x.hospedes?.nome}</span><span className="mono muted">{x.hospedes?.cpf ? `CPF ${cpfMascarado(x.hospedes.cpf)}` : "Passaporte"}</span></div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="field"><span className="label">Ficha FNRH</span>
-                    {atual.fnrh_status === "enviado" ? (
-                      <>
-                        <p>Ficha registrada no governo{atual.checkin_em ? ` · check-in em ${quando(atual.checkin_em)}` : ""}{atual.checkout_em ? ` · check-out em ${quando(atual.checkout_em)}` : ""}.</p>
-                        {atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {!atual.checkin_em && <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Registrando no governo…">Hóspede chegou</BotaoAcao></form>}
-                          {!atual.checkin_em && <form action={cancelarFicha}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn ghost" aguardando="Cancelando…">Cancelar ficha</BotaoAcao></form>}
-                          {atual.checkin_em && !atual.checkout_em && <form action={registrarSaida}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Registrando no governo…">Hóspede saiu</BotaoAcao></form>}
-                        </div>
-                        {!atual.checkin_em && <p className="muted small">Ao clicar, o check-in é registrado na FNRH com o horário de agora.</p>}
-                      </>
-                    ) : atual.fnrh_status === "erro" || atual.fnrh_status === "enviando" ? (
-                      <>
-                        <p className="err">{atual.fnrh_status === "enviando" ? "O envio anterior foi interrompido antes de o governo responder." : `O governo recusou ou não respondeu: ${atual.fnrh_erro ?? "erro desconhecido"}`}</p>
-                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Enviando ao governo… (até 30s)">Tentar de novo</BotaoAcao></form>
-                      </>
-                    ) : atual.fnrh_concluida && !atual.fnrh_erro ? (
-                      <p>Fichas confirmadas no gov.br.</p>
-                    ) : integracao ? (
-                      <>
-                        <p className="muted small">{atual.fnrh_erro ?? "A ficha ainda não foi enviada ao governo."}</p>
-                        <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Enviando ao governo… (até 30s)">Enviar ficha agora</BotaoAcao></form>
-                      </>
-                    ) : (
-                      <>
-                        <p className="muted small">Quando as fichas aparecerem no módulo da pousada na FNRH, marque aqui.</p>
-                        <form action={marcarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao>Marcar FNRH concluída</BotaoAcao></form>
-                      </>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="empty">O hóspede ainda não fez a pré-chegada. Envie o link pelo WhatsApp; se precisar, reenvie na véspera.</p>
-              )}
-            </section>
-          );
-        })()}
+
       </div>
     </main>
   );

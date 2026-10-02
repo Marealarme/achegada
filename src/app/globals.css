@@ -115,3 +115,9 @@ input[type=text], input[type=tel], input[type=email], input[type=password], inpu
 .acoes { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
 .note a { color: var(--accent); font-weight: 600; }
 .pill.bad { background: var(--warn-soft); color: var(--bad); }
+/* lista em sanfona: o detalhe abre logo abaixo da reserva clicada */
+.desk.unica { grid-template-columns: minmax(0, 1fr); max-width: 860px; margin-inline: auto; }
+.item { border-radius: 10px; scroll-margin-top: 16px; }
+.item.aberto { background: var(--surface-2); padding-bottom: 6px; margin-block: 4px; }
+.item.aberto > .row { background: var(--accent-soft); }
+.detalhe { display: grid; gap: 14px; padding: 14px 12px 8px; min-width: 0; }
