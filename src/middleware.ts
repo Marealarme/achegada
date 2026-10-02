@@ -20,7 +20,8 @@ export async function middleware(req: NextRequest) {
   });
   const { data } = await supabase.auth.getUser();
 
-  if (req.nextUrl.pathname.startsWith("/painel") && !data.user) {
+  const protegida = req.nextUrl.pathname.startsWith("/painel") || req.nextUrl.pathname.startsWith("/nova-senha");
+  if (protegida && !data.user) {
     const destino = req.nextUrl.clone();
     destino.pathname = "/entrar";
     destino.search = "";
@@ -29,4 +30,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/painel/:path*", "/entrar", "/cadastrar"] };
+export const config = { matcher: ["/painel/:path*", "/entrar/:path*", "/cadastrar", "/nova-senha"] };

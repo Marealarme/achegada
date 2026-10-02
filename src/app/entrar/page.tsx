@@ -21,6 +21,7 @@ export default function Entrar() {
           <input id="senha" name="senha" type="password" autoComplete="current-password" required />
         </div>
         {erro && <p className="err" role="alert">{erro}</p>}
+        <p className="small" style={{ marginTop: -6 }}><a href="/entrar/esqueci">Esqueci minha senha</a></p>
         <button className="btn primary block" type="submit" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</button>
         <p className="muted small">Ainda não usa o A Chegada? <a href="/cadastrar">Crie a conta da sua pousada</a> e teste 30 dias grátis.</p>
       </form>

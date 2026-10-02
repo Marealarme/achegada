@@ -19,7 +19,10 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
             : <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="var(--ink)" /><circle cx="20" cy="15" r="9" fill="var(--moon)" /><circle cx="16" cy="12" r="8.5" fill="var(--ink)" /></svg>}
           <div><h1>{s.pousada.nome}</h1><small>A Chegada · {s.perfil.nome}</small></div>
         </div>
-        <form action={sair}><button className="btn" type="submit">Sair</button></form>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <Link href="/nova-senha" className="btn ghost">Trocar senha</Link>
+          <form action={sair}><button className="btn" type="submit">Sair</button></form>
+        </div>
       </header>
       <nav className="abas" aria-label="Seções do painel">
         <Link href="/painel" aria-current={atual === "reservas" ? "page" : undefined}>Reservas</Link>
