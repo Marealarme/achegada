@@ -30,11 +30,10 @@ const ERRO_SALVAR = "Não conseguimos salvar agora. Tente de novo em instantes."
 export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fichaEnviada: boolean } | { ok: false; erro: string }> {
   const db = supabaseServico();
 
-  const { data: reserva } = await db
-    .from("reservas")
-    .select("id, pousada_id, check_in, check_out")
-    .eq("token", String(e.token ?? ""))
-    .maybeSingle();
+  const token = String(e.token ?? "");
+  type R = { id: string; pousada_id: string; check_in: string; check_out: string; ota_referencia?: string | null };
+  let { data: reserva } = (await db.from("reservas").select("id, pousada_id, check_in, check_out, ota_referencia").eq("token", token).maybeSingle()) as { data: R | null };
+  if (!reserva) ({ data: reserva } = (await db.from("reservas").select("id, pousada_id, check_in, check_out").eq("token", token).maybeSingle()) as { data: R | null });
   if (!reserva) return { ok: false, erro: "Link inválido. Peça um novo link à recepção." };
   if (Date.parse(reserva.check_out) + 2 * 864e5 < Date.now()) return { ok: false, erro: "Este link expirou." };
 
@@ -156,7 +155,7 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   // ---------- 4. ficha no governo (só se a integração estiver ligada) ----------
   if (!fnrhLigada()) return { ok: true, fichaEnviada: false };
   const payload = montarPayload({
-    reservaId: reserva.id, checkIn: reserva.check_in, checkOut: reserva.check_out, pessoas, motivo, transporte,
+    reservaId: reserva.id, checkIn: reserva.check_in, checkOut: reserva.check_out, otaReferencia: reserva.ota_referencia ?? null, pessoas, motivo, transporte,
     endereco: {
       email, telefone, paisResidencia, cep, logradouro: txt(end.logradouro), numero: txt(end.numero, 20),
       complemento: txt(end.complemento, 60), bairro: txt(end.bairro), cidadeIbge, uf: txt(end.uf, 2).toUpperCase(),

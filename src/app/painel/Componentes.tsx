@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { criarReserva, marcarLinkEnviado } from "./actions";
+import { criarReserva, importarHotelLink, marcarLinkEnviado } from "./actions";
 
 type Unidade = { id: string; nome: string };
 
@@ -59,5 +59,30 @@ export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: s
       <a className="btn primary" href={wa} target="_blank" rel="noopener noreferrer" onClick={registrar}>Enviar no WhatsApp</a>
       <button className="btn" type="button" onClick={copiar}>{copiado ? "Copiado" : "Copiar mensagem"}</button>
     </div>
+  );
+}
+
+/** Importa a lista de reservas exportada do Hotel Link e cria os cards. */
+export function ImportarHotelLink() {
+  const [aberto, setAberto] = useState(false);
+  const [res, acao, pendente] = useActionState(importarHotelLink, null);
+  if (!aberto)
+    return <button className="btn" type="button" onClick={() => setAberto(true)}>Importar do Hotel Link</button>;
+  return (
+    <form action={acao} className="newform" style={{ width: "100%" }}>
+      <div className="field">
+        <label htmlFor="arquivo">Arquivo de reservas do Hotel Link (.xls)</label>
+        <input id="arquivo" name="arquivo" type="file" accept=".xls,.xml,application/vnd.ms-excel" required />
+        <span className="hint">No Hotel Link: Reservas → exportar lista. Envie o arquivo como baixou, sem abrir no Excel. Reservas já importadas não duplicam.</span>
+      </div>
+      {res && <p className={res.ok ? "" : "err"} role="status">{res.mensagem}</p>}
+      {res?.detalhes && res.detalhes.length > 0 && (
+        <ul className="muted small" style={{ margin: 0, paddingLeft: 18 }}>{res.detalhes.map((d) => <li key={d}>{d}</li>)}</ul>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn" type="button" onClick={() => setAberto(false)}>Fechar</button>
+        <button className="btn primary" type="submit" disabled={pendente} style={{ flex: 1 }}>{pendente ? "Importando…" : "Importar reservas"}</button>
+      </div>
+    </form>
   );
 }

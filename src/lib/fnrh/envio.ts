@@ -79,7 +79,7 @@ export type EnderecoFicha = {
 
 /** Monta o pacote do POST /hospedagem/registrar a partir do check-in do hóspede. */
 export function montarPayload(args: {
-  reservaId: string; checkIn: string; checkOut: string;
+  reservaId: string; checkIn: string; checkOut: string; otaReferencia?: string | null;
   pessoas: PessoaFicha[]; endereco: EnderecoFicha; motivo: string; transporte: string;
 }): PayloadHospedagem {
   const { pessoas, endereco: e } = args;
@@ -96,12 +96,12 @@ export function montarPayload(args: {
   return {
     reserva: {
       numero_reserva: numeroReserva(args.reservaId),
-      numero_reserva_ota: "",
+      numero_reserva_ota: args.otaReferencia ?? "",
       data_entrada: args.checkIn,
       data_saida: args.checkOut,
       quantidade_hospede_adulto: pessoas.length - menores,
       quantidade_hospede_menor: menores,
-      origem_reserva_id: "MEIOHOSPEDAGEM",
+      origem_reserva_id: args.otaReferencia ? "OTA" : "MEIOHOSPEDAGEM",
     },
     dados_hospede: pessoas.map((p, i) => {
       const menor = idade(p.nascimento, args.checkIn) < 18;

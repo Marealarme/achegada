@@ -3,7 +3,8 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { supabaseEquipe } from "@/lib/supabase";
+import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
+import { ehOta, lerExportacaoHotelLink } from "@/lib/hotellink";
 import { cancelarReserva, checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
 import { processarEnvio } from "@/lib/fnrh/envio";
 
@@ -119,4 +120,83 @@ export async function cancelarFicha(form: FormData) {
     await db.from("reservas").update({ fnrh_erro: e instanceof ErroFnrh ? `Não foi possível cancelar: ${e.message}` : "Não foi possível cancelar." }).eq("id", reserva.id);
   }
   revalidatePath("/painel");
+}
+
+// ---------- Importação da lista de reservas do Hotel Link ----------
+export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[] };
+
+export async function importarHotelLink(_: ResultadoImportacao | null, form: FormData): Promise<ResultadoImportacao> {
+  const equipe = await supabaseEquipe();
+  const { data: auth } = await equipe.auth.getUser();
+  if (!auth.user) return { ok: false, mensagem: "Sua sessão expirou. Entre de novo." };
+  const { data: perfil } = await equipe.from("perfis").select("pousada_id").eq("user_id", auth.user.id).maybeSingle();
+  if (!perfil) return { ok: false, mensagem: "Seu usuário ainda não está ligado a uma pousada." };
+
+  const arquivo = form.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, mensagem: "Escolha o arquivo exportado do Hotel Link." };
+  if (arquivo.size > 3_000_000) return { ok: false, mensagem: "Arquivo grande demais. Exporte só as próximas semanas." };
+
+  const { reservas, erro } = lerExportacaoHotelLink(await arquivo.text());
+  if (erro) return { ok: false, mensagem: erro };
+
+  const db = supabaseServico(); // só após confirmar a pousada de quem está logado
+  const pousadaId = perfil.pousada_id as string;
+  const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+
+  // chalés: casa pelo nome; cria os que ainda não existem (nomes reais do Hotel Link)
+  const { data: unidadesAtuais } = await db.from("unidades").select("id, nome").eq("pousada_id", pousadaId);
+  const chave = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const unidades = new Map((unidadesAtuais ?? []).map((u) => [chave(u.nome), u.id as string]));
+  async function idUnidade(nome: string) {
+    if (!nome) return null;
+    const k = chave(nome);
+    if (unidades.has(k)) return unidades.get(k)!;
+    const categoria = /^su[ií]te/i.test(nome) ? "Suíte" : /^villa/i.test(nome) ? "Villa" : /^mezanino/i.test(nome) ? "Mezanino" : null;
+    const { data } = await db.from("unidades").insert({ pousada_id: pousadaId, nome, categoria, ordem: 100 + unidades.size }).select("id").single();
+    if (data) unidades.set(k, data.id);
+    return data?.id ?? null;
+  }
+
+  const refs = reservas.map((r) => r.referencia);
+  const { data: existentes, error: errExist } = await db.from("reservas")
+    .select("id, referencia_externa, pre_chegadas(id)").eq("pousada_id", pousadaId).in("referencia_externa", refs.length ? refs : ["-"]);
+  if (errExist) return { ok: false, mensagem: "O banco ainda não está pronto para a importação. Rode a migração 0005 no Supabase." };
+  const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as { id: string; pre_chegadas: unknown }]));
+
+  let criadas = 0, atualizadas = 0;
+  const ignoradas: string[] = [];
+  for (const r of reservas) {
+    const quem = r.titular || r.referencia;
+    if (!/confirm/i.test(r.status)) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
+    if (r.checkOut < hoje) { ignoradas.push(`${quem}: estadia já terminou`); continue; }
+    if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
+    const dados = {
+      titular: r.titular || "Hóspede",
+      telefone: r.telefone.replace(/\D/g, "") || null,
+      check_in: r.checkIn,
+      check_out: r.checkOut,
+      adultos: Math.min(12, Math.max(1, r.adultos)),
+      criancas: Math.min(12, Math.max(0, r.criancas)),
+      unidade_id: await idUnidade(r.quarto),
+      origem: r.origem || null,
+      ota_referencia: ehOta(r.origem) ? r.otaReferencia || r.referencia : null,
+    };
+    const atual = porRef.get(r.referencia);
+    if (atual) {
+      const jaFez = Array.isArray(atual.pre_chegadas) ? atual.pre_chegadas.length > 0 : !!atual.pre_chegadas;
+      if (jaFez) { ignoradas.push(`${quem}: já fez o check-in online (mantida como está)`); continue; }
+      const { error } = await db.from("reservas").update(dados).eq("id", atual.id);
+      if (error) ignoradas.push(`${quem}: não foi possível atualizar`); else atualizadas++;
+    } else {
+      const { error } = await db.from("reservas").insert({
+        ...dados, pousada_id: pousadaId, referencia_externa: r.referencia, token: randomBytes(12).toString("hex"), criado_por: auth.user.id,
+      });
+      if (error) ignoradas.push(`${quem}: não foi possível criar`); else criadas++;
+    }
+  }
+
+  revalidatePath("/painel");
+  const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
+  if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
+  return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.`, detalhes: ignoradas };
 }

@@ -7,7 +7,7 @@ import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@
 import { sair } from "../entrar/actions";
 import { cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
-import { BotoesMensagem, NovaReserva } from "./Componentes";
+import { BotoesMensagem, ImportarHotelLink, NovaReserva } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
   const [primeira, { data: unidades }] = await Promise.all([
     buscar(`${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`),
-    db.from("unidades").select("id, nome").order("ordem"),
+    db.from("unidades").select("id, nome").order("nome"),
   ]);
   // se a migração 0002 ainda não rodou, a coluna link_enviado_em não existe: busca sem ela
   let lista = primeira.data;
@@ -99,9 +99,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
 
       <div className="desk">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><NovaReserva unidades={unidades ?? []} /></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><ImportarHotelLink /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
-            <p className="empty">Nenhuma reserva ainda. Use “+ Nova reserva” para criar a primeira e gerar o link do hóspede.</p>
+            <p className="empty">Nenhuma reserva ainda. Use “Importar do Hotel Link” para trazer as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (
             <div className="list">
               {reservas.map((x) => {
