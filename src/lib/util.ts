@@ -52,7 +52,7 @@ export function mensagemWhatsApp(r: { titular: string; unidade: string; check_in
 Para chegar sem fila, faça seu check-in online (leva uns 3 minutos):
 ${r.link}
 
-Qualquer dúvida, é só responder por aqui.`;
+Salve este número nos seus contatos para receber nossas informações da estadia. Qualquer dúvida, é só responder por aqui.`;
 }
 
 export const FNRH_HOSPEDE_URL = "https://fnrh.turismo.serpro.gov.br/FNRH_Hospede";

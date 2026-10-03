@@ -37,11 +37,59 @@ export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
 }
 
 /** Abre o WhatsApp do colaborador com a mensagem pronta; ele só aperta enviar. Registra o envio no card. */
-export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: string; mensagem: string; telefone: string | null }) {
-  const [copiado, setCopiado] = useState(false);
+function linkWhatsApp(telefone: string | null, mensagem: string) {
   let numero = (telefone ?? "").replace(/\D/g, "");
   if (numero && numero.length <= 11) numero = "55" + numero;
-  const wa = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+}
+
+export type ItemFila = { id: string; titular: string; unidade: string; chegada: string; telefone: string; mensagem: string };
+
+/** Modo fila: envia os links de check-in um atrás do outro. Cada envio continua sendo um clique da recepção
+ *  (nada de disparo automático), para o número da pousada não ser visto como spam pelo WhatsApp. */
+export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTelefone: number }) {
+  const [aberto, setAberto] = useState(false);
+  const [pos, setPos] = useState(0);
+  const [enviados, setEnviados] = useState(0);
+  if (!itens.length) return null;
+  if (!aberto)
+    return <button className="btn" type="button" onClick={() => { setPos(0); setEnviados(0); setAberto(true); }}>Enviar links em fila ({itens.length})</button>;
+  const atual = itens[pos];
+  const proximo = () => setPos((p) => p + 1);
+  return (
+    <div className="newform" style={{ width: "100%" }}>
+      {atual ? (
+        <>
+          <span className="label">{pos + 1} de {itens.length} · {enviados} enviado(s)</span>
+          <div>
+            <b>{atual.titular}</b>
+            <div className="muted small">{atual.unidade} · chega {atual.chegada} · <span className="mono">{atual.telefone}</span></div>
+          </div>
+          <div className="msg">{atual.mensagem}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="btn" type="button" onClick={() => setAberto(false)}>Fechar</button>
+            <button className="btn" type="button" onClick={proximo}>Pular</button>
+            <a className="btn primary" style={{ flex: 1, textAlign: "center" }} href={linkWhatsApp(atual.telefone, atual.mensagem)} target="_blank" rel="noopener noreferrer"
+              onClick={() => { marcarLinkEnviado(atual.id).catch(() => {}); setEnviados((n) => n + 1); proximo(); }}>
+              Abrir WhatsApp e ir para o próximo
+            </a>
+          </div>
+          <span className="hint">Envie no WhatsApp e volte para esta tela: o próximo hóspede já estará pronto. Em dias de muito volume, divida em blocos (ex.: 20 de manhã e 20 à tarde).</span>
+        </>
+      ) : (
+        <>
+          <p role="status"><b>Fila concluída.</b> {enviados} link(s) enviado(s).</p>
+          <button className="btn" type="button" onClick={() => { setAberto(false); window.location.reload(); }}>Fechar e atualizar</button>
+        </>
+      )}
+      {semTelefone > 0 && <span className="hint">{semTelefone} reserva(s) sem WhatsApp cadastrado ficaram fora da fila.</span>}
+    </div>
+  );
+}
+
+export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: string; mensagem: string; telefone: string | null }) {
+  const [copiado, setCopiado] = useState(false);
+  const wa = linkWhatsApp(telefone, mensagem);
   const registrar = () => { marcarLinkEnviado(reservaId).catch(() => {}); };
 
   async function copiar() {
