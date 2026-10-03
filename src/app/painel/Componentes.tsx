@@ -63,6 +63,42 @@ export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: s
 }
 
 /** Importa a planilha de reservas (modelo do A Chegada ou exportação do sistema) e cria os cards. */
+/** Relatório de hóspedes em Excel: período opcional, planilha completa ou só a lista de marketing. */
+export function BaixarHospedes() {
+  const [aberto, setAberto] = useState(false);
+  const [de, setDe] = useState("");
+  const [ate, setAte] = useState("");
+  if (!aberto)
+    return <button className="btn ghost" type="button" onClick={() => setAberto(true)}>Baixar hóspedes (Excel)</button>;
+  const q = (extra: Record<string, string>) => {
+    const p = new URLSearchParams(extra);
+    if (de) p.set("de", de);
+    if (ate) p.set("ate", ate);
+    const s = p.toString();
+    return "/painel/exportar" + (s ? `?${s}` : "");
+  };
+  return (
+    <div className="newform" style={{ width: "100%" }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="field" style={{ flex: 1, minWidth: 140 }}>
+          <label htmlFor="exp-de">Check-in de</label>
+          <input id="exp-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+        </div>
+        <div className="field" style={{ flex: 1, minWidth: 140 }}>
+          <label htmlFor="exp-ate">até</label>
+          <input id="exp-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+        </div>
+      </div>
+      <span className="hint">Deixe as datas em branco para baixar tudo. A planilha completa tem duas abas: “Estadias” (uma linha por pessoa em cada reserva) e “Clientes” (uma linha por pessoa, com quantas vezes já veio). A lista para marketing traz só quem autorizou receber ofertas.</span>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn" type="button" onClick={() => setAberto(false)}>Fechar</button>
+        <a className="btn" href={q({ tipo: "marketing" })}>Lista para marketing</a>
+        <a className="btn primary" href={q({})} style={{ flex: 1, textAlign: "center" }}>Planilha completa</a>
+      </div>
+    </div>
+  );
+}
+
 export function ImportarReservas() {
   const [aberto, setAberto] = useState(false);
   const [res, acao, pendente] = useActionState(importarReservas, null);

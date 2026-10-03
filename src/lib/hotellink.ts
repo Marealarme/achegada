@@ -18,7 +18,7 @@ export type ReservaHL = {
 
 const MESES: Record<string, string> = {
   jan: "01", feb: "02", fev: "02", mar: "03", apr: "04", abr: "04", may: "05", mai: "05", jun: "06",
-  jul: "07", aug: "08", ago: "08", sep: "09", set: "09", oct: "10", out: "10", nov: "11", dec: "12", dez: "12",
+  jul: "07", aug: "08", ago: "08", sep: "09", set: "09", oct: "10", out: "10", nov: "11", dec: "12", dez: "12", ene: "01", dic: "12",
 };
 
 const OTAS = ["booking", "airbnb", "expedia", "decolar", "hoteis.com", "hotels.com", "trip.com", "agoda", "despegar"];
@@ -32,16 +32,26 @@ function texto(xml: string) {
 
 /** "16 Oct 2026" → "2026-10-16" */
 export function dataHL(s: string): string | null {
-  const m = s.trim().match(/^(\d{1,2})\s+([A-Za-zçÇ]{3})[a-zç]*\.?\s+(\d{4})/);
-  if (!m) return null;
-  const mes = MESES[m[2].toLowerCase()];
-  return mes ? `${m[3]}-${mes}-${m[1].padStart(2, "0")}` : null;
+  const t = s.trim();
+  const m = t.match(/^(\d{1,2})\s+([A-Za-zçÇ]{3})[a-zç]*\.?\s+(\d{4})/);
+  if (m) {
+    const mes = MESES[m[2].toLowerCase()];
+    return mes ? `${m[3]}-${mes}-${m[1].padStart(2, "0")}` : null;
+  }
+  const us = t.match(/^([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})/); // "Oct 16, 2026"
+  if (us) {
+    const mes = MESES[us[1].toLowerCase()];
+    return mes ? `${us[3]}-${mes}-${us[2].padStart(2, "0")}` : null;
+  }
+  const br = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // "16/10/2026"
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  return null;
 }
 
 /** "3 Adults, 1 Child" → { adultos: 3, criancas: 1 } */
 export function hospedesHL(s: string) {
   const a = s.match(/(\d+)\s*adult/i);
-  const c = s.match(/(\d+)\s*(child|crian)/i);
+  const c = s.match(/(\d+)\s*(child|crian|ni[nñ])/i);
   return { adultos: a ? Number(a[1]) : 2, criancas: c ? Number(c[1]) : 0 };
 }
 
@@ -60,7 +70,8 @@ export const ehOta = (origem: string) => OTAS.some((o) => origem.toLowerCase().i
 /** Lê o arquivo do Hotel Link em qualquer formato: .xls original (XML), ou aberto e salvo no Excel/Numbers (.xlsx/.numbers exportado). */
 export function lerArquivoHotelLink(bytes: Uint8Array): { reservas: ReservaHL[]; erro?: string } {
   const comeco = new TextDecoder("utf-8").decode(bytes.slice(0, 400));
-  if (/<\?xml|<Workbook/i.test(comeco)) return lerExportacaoHotelLink(new TextDecoder("utf-8").decode(bytes));
+  const zip = bytes[0] === 0x50 && bytes[1] === 0x4b; // .xlsx (PK...)
+  if (!zip && /<\?xml|<Workbook/i.test(comeco)) return lerExportacaoHotelLink(new TextDecoder("utf-8").decode(bytes));
   let linhas: string[][];
   try {
     const wb = XLSX.read(bytes, { type: "array", cellDates: false });
@@ -85,14 +96,29 @@ export function lerExportacaoHotelLink(conteudo: string): { reservas: ReservaHL[
 }
 
 function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } {
-  const inicio = todas.findIndex((l) => l.some((c) => /^refer[eê]ncia/i.test(c.trim())));
+  // cabeçalhos em português, inglês ou espanhol (o sistema exporta no idioma configurado pelo hoteleiro)
+  const n = (s: string) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  const ehRef = (c: string) => /^(referencia|reference|booking reference|booking ref)\b/.test(n(c));
+  const inicio = todas.findIndex((l) => l.some(ehRef));
   if (inicio < 0) return { reservas: [], erro: "Não encontrei as colunas da lista de reservas. Use a planilha modelo do painel." };
-  const cab = todas[inicio].map((c) => c.trim());
+  const cab = todas[inicio].map(n);
   const linhas = todas.slice(inicio);
-  const col = (nome: string) => cab.findIndex((c) => c.toLowerCase().startsWith(nome.toLowerCase()));
+  const col = (...nomes: string[]) => {
+    for (const nome of nomes.map(n)) { const k = cab.indexOf(nome); if (k >= 0) return k; } // nome exato primeiro
+    for (const nome of nomes.map(n)) { const k = cab.findIndex((c) => c.startsWith(nome)); if (k >= 0) return k; }
+    return -1;
+  };
   const i = {
-    ref: col("Referência"), ota: col("OTA Refer"), hospede: col("Hóspede"), tel: col("Número de Telefone"), origem: col("Origem"),
-    entrada: col("Check-in"), saida: col("Check-out"), status: col("Status"), quarto: col("Nome/Número do Quarto"), pessoas: col("Número Total de Hóspedes"),
+    ref: cab.findIndex(ehRef),
+    ota: col("OTA Refer", "OTA Ref", "Channel Ref", "Referencia OTA", "Referencia del canal"),
+    hospede: col("Hóspede", "Guest Name", "Guest", "Huésped", "Huesped", "Nombre del huésped"),
+    tel: col("Número de Telefone", "Telefone", "Phone Number", "Phone", "Número de teléfono", "Teléfono"),
+    origem: col("Origem", "Source", "Channel", "Origen", "Canal"),
+    entrada: col("Check-in", "Check in", "Arrival", "Llegada", "Entrada"),
+    saida: col("Check-out", "Check out", "Departure", "Salida", "Saída"),
+    status: col("Status", "Estado", "Situação"),
+    quarto: col("Nome/Número do Quarto", "Room Name/Number", "Room Name", "Room", "Nombre/Número de la habitación", "Habitación", "Quarto"),
+    pessoas: col("Número Total de Hóspedes", "Total Number of Guests", "Total Guests", "Número total de huéspedes", "Guests", "Huéspedes"),
   };
   if (i.ref < 0 || i.hospede < 0 || i.entrada < 0 || i.saida < 0)
     return { reservas: [], erro: "Não encontrei as colunas de referência, hóspede e datas. Use a planilha modelo do painel." };
