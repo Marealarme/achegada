@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
 import { ehOta } from "@/lib/hotellink";
-import { lerPlanilhaReservas } from "@/lib/importacao";
+import { CAMPOS, lerPlanilhaReservas, type Indices, type MapaSalvo, type PedidoMapeamento } from "@/lib/importacao";
 import { cancelarReserva, checkinReserva, checkoutReserva, ErroFnrh } from "@/lib/fnrh/cliente";
 import { processarEnvio } from "@/lib/fnrh/envio";
 
@@ -175,7 +175,7 @@ export async function cancelarCard(form: FormData) {
 }
 
 // ---------- Importação da planilha de reservas ----------
-export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[] };
+export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[]; mapear?: PedidoMapeamento; ligacaoSalva?: boolean };
 
 export async function importarReservas(_: ResultadoImportacao | null, form: FormData): Promise<ResultadoImportacao> {
   const equipe = await supabaseEquipe();
@@ -188,11 +188,27 @@ export async function importarReservas(_: ResultadoImportacao | null, form: Form
   if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, mensagem: "Escolha a planilha de reservas." };
   if (arquivo.size > 3_000_000) return { ok: false, mensagem: "Arquivo grande demais. Exporte só as próximas semanas." };
 
-  const { reservas, erro, avisos } = lerPlanilhaReservas(new Uint8Array(await arquivo.arrayBuffer()));
-  if (erro) return { ok: false, mensagem: erro };
-
   const db = supabaseServico(); // só após confirmar a pousada de quem está logado
   const pousadaId = perfil.pousada_id as string;
+
+  // ligações de colunas já salvas desta pousada (migração 0008; sem ela, a ligação vale só para este envio)
+  const { data: pousadaMapas, error: semMapas } = await db.from("pousadas").select("mapas_planilha").eq("id", pousadaId).maybeSingle();
+  const mapas = (semMapas ? [] : (pousadaMapas?.mapas_planilha as MapaSalvo[] | null) ?? []);
+  let manual: Indices | undefined;
+  if (form.get("mapear") === "1") {
+    manual = {};
+    for (const c of CAMPOS) { const v = String(form.get(`col_${c.id}`) ?? ""); if (v !== "") manual[c.id] = Number(v); }
+  }
+  const leitura = lerPlanilhaReservas(new Uint8Array(await arquivo.arrayBuffer()), { mapas, manual, refazer: form.get("refazer") === "1" });
+  if (leitura.mapear)
+    return { ok: false, mensagem: leitura.erro ?? "Primeira vez com esta planilha: diga em qual coluna está cada informação. Na próxima vez, o A Chegada já reconhece sozinho.", mapear: leitura.mapear };
+  if (leitura.erro) return { ok: false, mensagem: leitura.erro };
+  const { reservas, avisos } = leitura;
+  if (leitura.mapaNovo && !semMapas) {
+    const outros = mapas.filter((m) => m.assinatura !== leitura.mapaNovo!.assinatura);
+    await db.from("pousadas").update({ mapas_planilha: [leitura.mapaNovo, ...outros].slice(0, 10) }).eq("id", pousadaId);
+  }
+  const usouLigacao = leitura.fonte === "ligacao";
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
 
   // chalés: casa pelo nome; cria os que ainda não existem (nomes como vieram na planilha)
@@ -267,5 +283,6 @@ export async function importarReservas(_: ResultadoImportacao | null, form: Form
   const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
   if (canceladas) partes.push(`${canceladas} cancelada(s) na planilha`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
-  return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.`, detalhes: ignoradas };
+  const aviso = leitura.mapaNovo && semMapas ? " (ligação de colunas não ficou salva: rode a migração 0008 no Supabase)" : "";
+  return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.${aviso}`, detalhes: ignoradas, ligacaoSalva: usouLigacao };
 }

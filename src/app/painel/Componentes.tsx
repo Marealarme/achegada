@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
+import { CAMPOS } from "@/lib/camposPlanilha";
 import { criarReserva, importarReservas, marcarLinkEnviado } from "./actions";
 
 type Unidade = { id: string; nome: string };
@@ -149,23 +150,62 @@ export function BaixarHospedes() {
 
 export function ImportarReservas() {
   const [aberto, setAberto] = useState(false);
-  const [res, acao, pendente] = useActionState(importarReservas, null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [resposta, acao, pendente] = useActionState(importarReservas, null);
+  const [descartada, setDescartada] = useState<typeof resposta>(null);
+  const res = resposta === descartada ? null : resposta; // trocou de arquivo: esquece a resposta anterior
   if (!aberto)
     return <button className="btn" type="button" onClick={() => setAberto(true)}>Importar reservas</button>;
+
+  // envio manual (sem o "action" do form) para o arquivo continuar escolhido na tela de ligar colunas
+  function enviar(e: React.FormEvent<HTMLFormElement>, extra: Record<string, string> = {}) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    if (arquivo) fd.set("arquivo", arquivo);
+    for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+    startTransition(() => acao(fd));
+  }
+  const mapear = res?.mapear;
   return (
-    <form action={acao} className="newform" style={{ width: "100%" }}>
+    <form onSubmit={(e) => enviar(e, mapear ? { mapear: "1" } : {})} className="newform" style={{ width: "100%" }}>
       <div className="field">
         <label htmlFor="arquivo">Planilha de reservas</label>
-        <input id="arquivo" name="arquivo" type="file" required />
-        <span className="hint">Use a <a href="/painel/modelo-reservas">planilha modelo</a>: baixe, preencha uma linha por reserva e envie aqui (.xlsx ou .csv). Também aceita a lista exportada de alguns sistemas de reservas. Reservas já importadas não duplicam.</span>
+        <input id="arquivo" name="arquivo" type="file" required={!arquivo} onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); setDescartada(resposta); }} />
+        <span className="hint">Envie a lista de reservas exportada do seu sistema (.xlsx, .xls ou .csv). Na primeira vez, o A Chegada pergunta em qual coluna está cada informação e guarda a resposta. Se preferir, use a <a href="/painel/modelo-reservas">planilha modelo</a>. Reservas já importadas não duplicam.</span>
       </div>
-      {res && <p className={res.ok ? "" : "err"} role="status">{res.mensagem}</p>}
+      {res && <p className={res.ok ? "" : mapear ? "" : "err"} role="status">{res.mensagem}</p>}
+
+      {mapear && (
+        <div className="field" key={mapear.colunas.join("|")}>
+          <span className="label">Ligar colunas</span>
+          {CAMPOS.map((c) => (
+            <div className="field" key={c.id}>
+              <label htmlFor={`col_${c.id}`}>{c.rotulo}{c.obrigatorio ? " *" : ""}</label>
+              <select id={`col_${c.id}`} name={`col_${c.id}`} defaultValue={mapear.sugestao[c.id] !== undefined ? String(mapear.sugestao[c.id]) : ""} required={c.obrigatorio}>
+                <option value="">{c.obrigatorio ? "Escolha a coluna" : "Minha planilha não tem"}</option>
+                {mapear.colunas.map((nome, k) => (
+                  <option key={k} value={k}>{nome}{mapear.amostras[k]?.length ? ` · ex.: ${mapear.amostras[k].slice(0, 2).join(", ")}` : ""}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+          <span className="hint">* obrigatórios. Sem a coluna de situação, todas as reservas entram como confirmadas. Sem o código da reserva, o A Chegada usa nome + datas para não duplicar.</span>
+        </div>
+      )}
+
       {res?.detalhes && res.detalhes.length > 0 && (
         <ul className="muted small" style={{ margin: 0, paddingLeft: 18 }}>{res.detalhes.map((d) => <li key={d}>{d}</li>)}</ul>
       )}
+      {res?.ok && res.ligacaoSalva && (
+        <button className="btn ghost" type="button" disabled={pendente || !arquivo} onClick={(e) => {
+          const form = (e.currentTarget as HTMLButtonElement).form!;
+          const fd = new FormData(form); if (arquivo) fd.set("arquivo", arquivo); fd.set("refazer", "1");
+          startTransition(() => acao(fd));
+        }}>Colunas erradas? Ligar de novo</button>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn" type="button" onClick={() => setAberto(false)}>Fechar</button>
-        <button className="btn primary" type="submit" disabled={pendente} style={{ flex: 1 }}>{pendente ? "Importando…" : "Importar reservas"}</button>
+        <button className="btn primary" type="submit" disabled={pendente} style={{ flex: 1 }}>{pendente ? "Importando…" : mapear ? "Importar com estas colunas" : "Importar reservas"}</button>
       </div>
     </form>
   );
