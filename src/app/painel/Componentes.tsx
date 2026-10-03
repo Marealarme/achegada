@@ -73,7 +73,7 @@ export function ImportarReservas() {
       <div className="field">
         <label htmlFor="arquivo">Planilha de reservas</label>
         <input id="arquivo" name="arquivo" type="file" required />
-        <span className="hint">Use a <a href="/painel/modelo-reservas" download>planilha modelo</a>: baixe, preencha uma linha por reserva e envie aqui (.xlsx ou .csv). Também aceita a lista exportada de alguns sistemas de reservas. Reservas já importadas não duplicam.</span>
+        <span className="hint">Use a <a href="/painel/modelo-reservas">planilha modelo</a>: baixe, preencha uma linha por reserva e envie aqui (.xlsx ou .csv). Também aceita a lista exportada de alguns sistemas de reservas. Reservas já importadas não duplicam.</span>
       </div>
       {res && <p className={res.ok ? "" : "err"} role="status">{res.mensagem}</p>}
       {res?.detalhes && res.detalhes.length > 0 && (

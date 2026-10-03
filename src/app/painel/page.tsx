@@ -177,7 +177,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
 
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{podeConfigurar(sessao) && <a className="btn ghost" href="/painel/exportar" download>Baixar hóspedes (Excel)</a>}<ImportarReservas /><NovaReserva unidades={unidades ?? []} /></div></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{podeConfigurar(sessao) && <a className="btn ghost" href="/painel/exportar">Baixar hóspedes (Excel)</a>}<ImportarReservas /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar reservas” para subir a planilha com as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (

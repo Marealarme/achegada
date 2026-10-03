@@ -118,7 +118,7 @@ export async function GET() {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="hospedes-${s.pousada.slug}-${hoje}.xlsx"`,
-      "Cache-Control": "no-store",
+      "Cache-Control": "private, max-age=300", // "no-store" faz o iPhone não conseguir abrir o arquivo baixado
     },
   });
 }
