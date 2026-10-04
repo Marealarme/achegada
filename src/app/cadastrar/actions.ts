@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
+import { cidadeOficial } from "@/lib/municipios";
 
 const txt = (f: FormData, k: string, max = 120) => String(f.get(k) ?? "").trim().slice(0, max);
 
@@ -13,7 +14,8 @@ function slugDe(nome: string) {
 export async function cadastrar(_: string, f: FormData): Promise<string> {
   if (txt(f, "site")) return "Não foi possível concluir."; // armadilha para robôs (campo escondido)
   const pousada = txt(f, "pousada");
-  const cidade = txt(f, "cidade", 80);
+  const uf = txt(f, "uf", 2).toUpperCase();
+  const cidade = cidadeOficial(uf, txt(f, "cidade", 80));
   const unidades = Number(f.get("unidades"));
   const whatsapp = txt(f, "whatsapp", 20).replace(/\D/g, "");
   const nome = txt(f, "nome", 80);
@@ -22,7 +24,8 @@ export async function cadastrar(_: string, f: FormData): Promise<string> {
   const aceite = f.get("aceite") === "on";
 
   if (pousada.length < 3) return "Informe o nome da pousada.";
-  if (!cidade) return "Informe a cidade.";
+  if (!uf) return "Escolha o estado.";
+  if (!cidade) return "Escolha a cidade na lista (digite e selecione uma das sugestões).";
   if (!(unidades >= 1 && unidades <= 40)) return "Informe quantos chalés/quartos a pousada tem (até 40).";
   if (whatsapp.length < 10) return "Informe o WhatsApp da pousada com DDD.";
   if (nome.split(/\s+/).length < 2) return "Informe seu nome completo.";
@@ -54,12 +57,15 @@ export async function cadastrar(_: string, f: FormData): Promise<string> {
     if (!data) break;
     slug = `${slugDe(pousada)}-${i}`;
   }
-  const { data: nova, error: errP } = await db.from("pousadas").insert({
+  const dadosPousada = {
     nome: pousada, slug, cidade, whatsapp, qtd_unidades: unidades, endereco_mapa: `${pousada} ${cidade}`,
     assinatura_status: "sem_assinatura",
     regras_da_casa: "Silêncio após as 22h.\nVisitantes somente com autorização da recepção.",
     termo_pet: "", politica_cancelamento: "",
-  }).select("id").single();
+  };
+  // com a coluna uf (migração 0009); sem ela, grava só a cidade
+  let { data: nova, error: errP } = await db.from("pousadas").insert({ ...dadosPousada, uf }).select("id").single();
+  if (errP && /uf/.test(errP.message)) ({ data: nova, error: errP } = await db.from("pousadas").insert(dadosPousada).select("id").single());
   if (errP || !nova) return "Não foi possível criar a pousada. Tente de novo.";
 
   const { error: errPerfil } = await db.from("perfis").insert({ user_id: userId, pousada_id: nova.id, nome, papel: "dono" });

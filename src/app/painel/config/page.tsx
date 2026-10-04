@@ -4,6 +4,7 @@ import { sessaoEquipe, podeConfigurar } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import Cabecalho from "../Cabecalho";
 import Form from "./Form";
+import CampoCidade from "../../CampoCidade";
 import BotaoAcao from "../BotaoAcao";
 import { adicionarChale, adicionarMembro, enviarLogo, removerChale, removerMembro, salvarDados, salvarFnrh } from "./actions";
 
@@ -35,7 +36,7 @@ export default async function Config() {
           <Form action={salvarDados} botao="Salvar dados">
             <div className="grid2">
               <div className="field"><label htmlFor="nome">Nome</label><input id="nome" name="nome" type="text" defaultValue={v("nome")} required /></div>
-              <div className="field"><label htmlFor="cidade">Cidade</label><input id="cidade" name="cidade" type="text" defaultValue={v("cidade")} /></div>
+              <CampoCidade uf={v("uf")} cidade={v("cidade")} />
             </div>
             <div className="grid2">
               <div className="field"><label htmlFor="whatsapp">WhatsApp da pousada</label><input id="whatsapp" name="whatsapp" type="tel" defaultValue={v("whatsapp")} /></div>

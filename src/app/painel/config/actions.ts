@@ -5,6 +5,7 @@ import { sessaoEquipe, podeConfigurar } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cifrar, criptoDisponivel } from "@/lib/cripto";
 import { cpfValido } from "@/lib/util";
+import { cidadeOficial } from "@/lib/municipios";
 
 const txt = (f: FormData, k: string, max = 2000) => String(f.get(k) ?? "").trim().slice(0, max);
 const SEM_PERMISSAO = "Só o dono ou a gerência podem alterar as configurações.";
@@ -15,9 +16,13 @@ export async function salvarDados(_: string, f: FormData): Promise<string> {
   const nome = txt(f, "nome", 120);
   const qtd = Number(f.get("qtd_unidades"));
   if (nome.length < 3) return "Informe o nome da pousada.";
-  const { error } = await s.db.from("pousadas").update({
+  const uf = txt(f, "uf", 2).toUpperCase();
+  const cidadeDigitada = txt(f, "cidade", 80);
+  const cidade = uf ? cidadeOficial(uf, cidadeDigitada) : null;
+  if (uf && cidadeDigitada && !cidade) return "Escolha a cidade na lista do estado selecionado.";
+  const dados = {
     nome,
-    cidade: txt(f, "cidade", 80) || null,
+    cidade: cidade ?? (cidadeDigitada || null),
     whatsapp: txt(f, "whatsapp", 20).replace(/\D/g, "") || null,
     endereco_mapa: txt(f, "endereco_mapa", 200) || null,
     qtd_unidades: qtd >= 1 && qtd <= 200 ? qtd : null,
@@ -26,7 +31,9 @@ export async function salvarDados(_: string, f: FormData): Promise<string> {
     regras_da_casa: txt(f, "regras_da_casa") || null,
     termo_pet: txt(f, "termo_pet") || null,
     politica_cancelamento: txt(f, "politica_cancelamento") || null,
-  }).eq("id", s.pousada.id);
+  };
+  let { error } = await s.db.from("pousadas").update({ ...dados, uf: uf || null }).eq("id", s.pousada.id);
+  if (error && /uf/.test(error.message)) ({ error } = await s.db.from("pousadas").update(dados).eq("id", s.pousada.id)); // sem a migração 0009
   if (error) return "Não foi possível salvar. Tente de novo.";
   revalidatePath("/painel", "layout");
   return "Salvo.";
