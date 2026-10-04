@@ -23,7 +23,7 @@ const TEXTO: Record<string, string> = {
 
 const dataBR = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-export default async function Assinatura({ searchParams }: { searchParams: Promise<{ ok?: string; bemvindo?: string }> }) {
+export default async function Assinatura({ searchParams }: { searchParams: Promise<{ ok?: string; bemvindo?: string; erro?: string }> }) {
   const q = await searchParams;
   const s = await sessaoEquipe();
   const st = s.pousada.assinatura_status;
@@ -35,6 +35,7 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
       <Cabecalho s={s} atual="assinatura" />
       <section className="panel" style={{ maxWidth: 860, margin: "0 auto" }}>
         {q.bemvindo && <p className="aviso">Conta criada! Último passo: escolha o plano e cadastre o cartão. Nada é cobrado nos primeiros {DIAS_TESTE} dias.</p>}
+        {q.erro && <p className="aviso erro" role="alert">Não conseguimos abrir a página de pagamento. Tente de novo em instantes; se continuar, fale com o suporte pelo WhatsApp (19) 99759-4522. <span className="small">Motivo: {q.erro}</span></p>}
         {q.ok && !temAssinatura && <p className="aviso">Recebemos o cadastro. A confirmação do Stripe leva alguns segundos: recarregue a página.</p>}
         <div>
           <span className="label">Assinatura</span>
