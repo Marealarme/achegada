@@ -181,6 +181,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <div className="kpi"><span className="label">Fichas FNRH prontas</span><strong>{prontas} de {reservas.length}</strong></div>
       </section>
 
+      {!integracao && podeConfigurar(sessao) && (
+        <p className="aviso">A ficha do governo (FNRH) ainda não está ligada: hoje o hóspede é levado ao site do governo para preencher. <a href="/painel/config">Ligar a FNRH em 5 minutos</a></p>
+      )}
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
           <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} semTelefone={aEnviar.length - fila.length} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas /><NovaReserva unidades={unidades ?? []} /></div></div>

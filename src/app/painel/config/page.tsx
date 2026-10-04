@@ -79,9 +79,19 @@ export default async function Config() {
 
         <section className="panel">
           <h2>Ficha do governo (FNRH)</h2>
-          <p className="muted small">
-            Com a chave cadastrada, cada check-in envia a ficha sozinho. Onde achar: entre em fnrh.turismo.serpro.gov.br/FNRH_SRH com o gov.br do responsável → menu “Chave das API&apos;s”.
-          </p>
+          <p className="muted small">Com a chave cadastrada, cada check-in envia a ficha ao governo sozinho, sem o hóspede precisar de gov.br.</p>
+          <details className="passo-a-passo" open={!seg?.fnrh_usuario && !usaVariaveis}>
+            <summary>Como ligar a FNRH (passo a passo, uns 5 minutos)</summary>
+            <ol>
+              <li>A pousada precisa estar no <b>Cadastur</b> (o mesmo cadastro exigido para funcionar). Se ainda não tiver, faça em <a href="https://cadastur.turismo.gov.br" target="_blank" rel="noopener noreferrer">cadastur.turismo.gov.br</a>.</li>
+              <li>Abra o sistema da FNRH para meios de hospedagem: <a href="https://fnrh.turismo.serpro.gov.br/FNRH_SRH" target="_blank" rel="noopener noreferrer">fnrh.turismo.serpro.gov.br/FNRH_SRH</a>.</li>
+              <li>Entre com a <b>conta gov.br do responsável</b> pela pousada (o CPF ligado ao Cadastur).</li>
+              <li>No menu, abra <b>“Chave das API&apos;s”</b> e gere a chave. O governo mostra um <b>usuário</b> e uma <b>senha</b>: copie os dois.</li>
+              <li>Volte aqui e preencha abaixo: usuário, senha, o <b>CPF do responsável</b> e o ambiente <b>Oficial</b>. Clique em “Salvar chave da FNRH”.</li>
+              <li>Pronto. No próximo check-in online, o card da reserva mostra <b>“Ficha enviada”</b>. Se aparecer um erro, o motivo do governo aparece no card.</li>
+            </ol>
+            <p className="muted small">Dúvidas? Fale com o suporte pelo WhatsApp (19) 99759-4522.</p>
+          </details>
           {seg?.fnrh_usuario ? (
             <p className="ok">Chave cadastrada (usuário {seg.fnrh_usuario}, ambiente {seg.fnrh_ambiente === "homologacao" ? "de teste" : "oficial"}). Para trocar, preencha de novo.</p>
           ) : usaVariaveis ? (
