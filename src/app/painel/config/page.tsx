@@ -86,8 +86,8 @@ export default async function Config() {
               <li>A pousada precisa estar no <b>Cadastur</b> (o mesmo cadastro exigido para funcionar). Se ainda não tiver, faça em <a href="https://cadastur.turismo.gov.br" target="_blank" rel="noopener noreferrer">cadastur.turismo.gov.br</a>.</li>
               <li>Abra o sistema da FNRH para meios de hospedagem: <a href="https://fnrh.turismo.serpro.gov.br/FNRH_SRH" target="_blank" rel="noopener noreferrer">fnrh.turismo.serpro.gov.br/FNRH_SRH</a>.</li>
               <li>Entre com a <b>conta gov.br do responsável</b> pela pousada (o CPF ligado ao Cadastur).</li>
-              <li>No menu, abra <b>“Chave das API&apos;s”</b> e gere a chave. O governo mostra um <b>usuário</b> e uma <b>senha</b>: copie os dois.</li>
-              <li>Volte aqui e preencha abaixo: usuário, senha, o <b>CPF do responsável</b> e o ambiente <b>Oficial</b>. Clique em “Salvar chave da FNRH”.</li>
+              <li>No menu, abra <b>“Chave das API&apos;s”</b> e gere a chave. O governo mostra um <b>usuário</b> e uma <b>chave</b>: copie os dois.</li>
+              <li>Volte aqui e preencha abaixo: usuário, chave, o <b>CPF do responsável</b> e o ambiente <b>Oficial</b>. Clique em “Salvar chave da FNRH”.</li>
               <li>Pronto. No próximo check-in online, o card da reserva mostra <b>“Ficha enviada”</b>. Se aparecer um erro, o motivo do governo aparece no card.</li>
             </ol>
             <p className="muted small">Dúvidas? Fale com o suporte pelo WhatsApp (19) 99759-4522.</p>
@@ -102,7 +102,7 @@ export default async function Config() {
           <Form action={salvarFnrh} botao="Salvar chave da FNRH">
             <div className="grid2">
               <div className="field"><label htmlFor="usuario">Usuário da API</label><input id="usuario" name="usuario" type="text" autoComplete="off" /></div>
-              <div className="field"><label htmlFor="senha">Senha da API</label><input id="senha" name="senha" type="password" autoComplete="new-password" /></div>
+              <div className="field"><label htmlFor="senha">Chave da API</label><input id="senha" name="senha" type="password" autoComplete="new-password" /></div>
             </div>
             <div className="grid2">
               <div className="field"><label htmlFor="cpf">CPF do responsável</label><input id="cpf" name="cpf" type="text" inputMode="numeric" autoComplete="off" /></div>
@@ -110,7 +110,7 @@ export default async function Config() {
                 <select id="ambiente" name="ambiente" defaultValue="producao"><option value="producao">Oficial (fichas reais)</option><option value="homologacao">Teste do governo</option></select>
               </div>
             </div>
-            <p className="muted small">A senha e o CPF ficam guardados criptografados e não aparecem mais na tela.</p>
+            <p className="muted small">A chave e o CPF ficam guardados criptografados e não aparecem mais na tela.</p>
           </Form>
         </section>
 

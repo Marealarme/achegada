@@ -84,7 +84,7 @@ export async function salvarFnrh(_: string, f: FormData): Promise<string> {
   const senha = String(f.get("senha") ?? "").trim();
   const cpf = txt(f, "cpf", 20).replace(/\D/g, "");
   const ambiente = f.get("ambiente") === "homologacao" ? "homologacao" : "producao";
-  if (!usuario || !senha) return "Informe o usuário e a senha da “Chave das API's” da FNRH.";
+  if (!usuario || !senha) return "Informe o usuário e a chave da “Chave das API's” da FNRH.";
   if (!cpfValido(cpf)) return "Informe o CPF do responsável pela FNRH (o mesmo cadastrado no Cadastur).";
   const { error } = await supabaseServico().from("pousada_segredos").upsert({
     pousada_id: s.pousada.id, fnrh_usuario: usuario, fnrh_senha_cripto: cifrar(senha), fnrh_cpf_cripto: cifrar(cpf),
