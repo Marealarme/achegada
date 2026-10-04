@@ -13,16 +13,22 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
     ? Math.max(0, Math.ceil((Date.parse(s.pousada.teste_ate) - Date.now()) / 864e5)) : null;
   return (
     <>
-      <header className="top">
-        <div className="brand">
-          {s.pousada.logo_url
-            ? <img src={s.pousada.logo_url} alt={`Logo ${s.pousada.nome}`} width={44} height={44} className="logo-pousada" />
-            : <Marca />}
-          <div><h1>{s.pousada.nome}</h1><small>A Chegada · {s.perfil.nome}</small></div>
-        </div>
+      {/* barra do app: deixa claro em qual app da família a pessoa está */}
+      <div className="appbar">
+        <Link href="/painel" className="appbar-marca" aria-label="A Chegada, início do painel">
+          <Marca size={28} />
+          <span><b>A Chegada</b><small>Check-in online e FNRH</small></span>
+        </Link>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <Link href="/nova-senha" className="btn ghost">Trocar senha</Link>
           <form action={sair}><button className="btn" type="submit">Sair</button></form>
+        </div>
+      </div>
+      {/* a pousada: logo e nome do hoteleiro, e quem está usando */}
+      <header className="top">
+        <div className="brand">
+          {s.pousada.logo_url && <img src={s.pousada.logo_url} alt={`Logo ${s.pousada.nome}`} width={44} height={44} className="logo-pousada" />}
+          <div><h1>{s.pousada.nome}</h1><small>Olá, {s.perfil.nome}</small></div>
         </div>
       </header>
       <nav className="abas" aria-label="Seções do painel">

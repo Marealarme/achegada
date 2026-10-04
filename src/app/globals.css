@@ -75,6 +75,10 @@ input[type=text], input[type=tel], input[type=email], input[type=password], inpu
 
 /* painel */
 .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; }
+.appbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.appbar-marca { display: flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; }
+.appbar-marca b { display: block; font: 700 1rem var(--display); line-height: 1.1; }
+.appbar-marca small { display: block; font-size: 0.72rem; color: var(--muted); }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand small { display: block; color: var(--muted); font-size: 0.8rem; }
