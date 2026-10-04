@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { enviarSemApagar } from "@/lib/enviarSemApagar";
 import { pedirNovaSenha } from "../actions";
 
 export default function Esqueci() {
   const [res, acao, pendente] = useActionState(pedirNovaSenha, "");
   return (
     <main className="wrap">
-      <form action={acao} className="panel login">
+      <form onSubmit={enviarSemApagar(acao)} className="panel login">
         <div>
           <span className="label">A Chegada</span>
           <h1>Esqueci minha senha</h1>

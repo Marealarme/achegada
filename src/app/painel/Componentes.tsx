@@ -1,6 +1,8 @@
 "use client";
 
-import { startTransition, useActionState, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { enviarSemApagar } from "@/lib/enviarSemApagar";
 import { CAMPOS } from "@/lib/camposPlanilha";
 import { criarReserva, importarReservas, marcarLinkEnviado } from "./actions";
 
@@ -9,10 +11,13 @@ type Unidade = { id: string; nome: string };
 export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
   const [aberto, setAberto] = useState(false);
   const [erro, acao, pendente] = useActionState(criarReserva, "");
+  // reserva criada: o painel abre o card novo (?r=…); fecha e limpa o formulário
+  const criada = useSearchParams().get("r");
+  useEffect(() => { setAberto(false); }, [criada]);
   if (!aberto)
     return <button className="btn primary" type="button" onClick={() => setAberto(true)}>+ Nova reserva</button>;
   return (
-    <form action={acao} className="newform" style={{ width: "100%" }}>
+    <form onSubmit={enviarSemApagar(acao)} className="newform" style={{ width: "100%" }}>
       <div className="field"><label htmlFor="titular">Nome do titular</label><input id="titular" name="titular" type="text" required /></div>
       <div className="grid2">
         <div className="field"><label htmlFor="telefone">WhatsApp</label><input id="telefone" name="telefone" type="tel" placeholder="(11) 90000-0000" /></div>

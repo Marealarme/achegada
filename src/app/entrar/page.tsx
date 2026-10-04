@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { enviarSemApagar } from "@/lib/enviarSemApagar";
 import { entrar } from "./actions";
 
 export default function Entrar() {
   const [erro, acao, pendente] = useActionState(entrar, "");
   return (
     <main className="wrap">
-      <form action={acao} className="panel login">
+      <form onSubmit={enviarSemApagar(acao)} className="panel login">
         <div>
           <span className="label">A Chegada</span>
           <h1>Entrar no painel</h1>

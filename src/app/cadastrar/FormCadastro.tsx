@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { enviarSemApagar } from "@/lib/enviarSemApagar";
 import Link from "next/link";
 import { cadastrar } from "./actions";
 
 export default function FormCadastro({ logado }: { logado: boolean }) {
   const [erro, acao, pendente] = useActionState(cadastrar, "");
   return (
-    <form action={acao} className="secao">
+    <form onSubmit={enviarSemApagar(acao)} className="secao">
       <div className="field"><label htmlFor="pousada">Nome da pousada</label><input id="pousada" name="pousada" type="text" required /></div>
       <div className="grid2">
         <div className="field"><label htmlFor="cidade">Cidade</label><input id="cidade" name="cidade" type="text" placeholder="Ex.: Maresias" required /></div>
