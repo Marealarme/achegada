@@ -56,7 +56,8 @@ const SEGURANCA = [
 const FAQ = [
   { q: "A FNRH digital é obrigatória?", r: "Sim. Desde 20 de abril de 2026 todo meio de hospedagem precisa registrar os hóspedes na ficha digital do Ministério do Turismo." },
   { q: "O hóspede precisa ter conta gov.br?", r: "Não. Ele preenche só o check-in da pousada; o A Chegada envia a ficha pela integração oficial da FNRH." },
-  { q: "Preciso trocar o meu sistema de reservas?", r: "Não. O A Chegada trabalha ao lado do seu sistema: você importa a lista de reservas e segue usando o que já usa." },
+  { q: "O que a pousada precisa para ligar a FNRH?", r: "Estar no Cadastur e gerar, uma única vez, a chave da API no sistema da FNRH com o gov.br do responsável. Leva uns 5 minutos e o painel mostra o passo a passo com os links do governo. Se precisar, a gente ajuda pelo WhatsApp." },
+  { q: "Preciso trocar o meu sistema de reservas?", r: "Não. O A Chegada trabalha ao lado do seu sistema: você sobe a lista de reservas exportada (Hotel Link, HBook, Omnibees, Cloudbeds ou qualquer planilha) e segue usando o que já usa. Na primeira vez você diz em qual coluna está cada informação; depois ele reconhece sozinho." },
   { q: "E a LGPD?", r: "A pousada é a controladora dos dados e o A Chegada é o operador. Os dados ficam em servidores no Brasil, isolados por pousada, e senhas e chaves são criptografadas." },
   { q: "Tem fidelidade?", r: "Não. São 30 dias grátis e depois mensalidade no cartão. Cancele quando quiser, pelo próprio painel." },
   { q: "Tenho mais de 40 unidades. Atende?", r: `Sim. Fale com a ${EMPRESA} pelo WhatsApp ${FONE} para um plano sob medida.` },
