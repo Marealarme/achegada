@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://achegada.marealarme.com.br"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://achegada.innexperts.com.br"),
   title: { default: "A Chegada", template: "%s · A Chegada" },
   description: "Check-in online e pré-chegada de hóspedes.",
 };

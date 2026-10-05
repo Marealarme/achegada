@@ -4,7 +4,7 @@ import { stripe, sincronizarAssinatura } from "@/lib/assinatura";
 import { supabaseServico } from "@/lib/supabase";
 
 // Avisos automáticos do Stripe (pagamento feito, teste acabando, cartão recusado, cancelamento…).
-// Cadastre no Stripe: Developers → Webhooks → endpoint https://achegada.marealarme.com.br/api/stripe/webhook
+// Cadastre no Stripe: Developers → Webhooks → endpoint https://achegada.innexperts.com.br/api/stripe/webhook
 export async function POST(req: Request) {
   const segredo = process.env.STRIPE_WEBHOOK_SECRET;
   if (!segredo || !process.env.STRIPE_SECRET_KEY) return NextResponse.json({ erro: "não configurado" }, { status: 503 });
