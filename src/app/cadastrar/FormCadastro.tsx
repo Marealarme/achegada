@@ -21,7 +21,7 @@ export default function FormCadastro({ logado }: { logado: boolean }) {
           <div className="field"><label htmlFor="senha">Senha</label><input id="senha" name="senha" type="password" autoComplete="new-password" minLength={8} required /><span className="hint">Mínimo de 8 caracteres</span></div>
         </div>
       )}
-      <input name="site" type="text" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: "-9999px" }} />
+      <input name="zq_hp_7" type="text" tabIndex={-1} autoComplete="nope" data-lpignore="true" data-1p-ignore="" aria-hidden="true" style={{ position: "absolute", left: "-9999px" }} />
       <label className="check"><input id="aceite" name="aceite" type="checkbox" /><span>Li e aceito os <Link href="/termos" target="_blank">termos de uso e a política de privacidade</Link>.</span></label>
       {erro && <p className="err" role="alert">{erro}</p>}
       <button className="btn primary block" type="submit" disabled={pendente}>{pendente ? "Criando…" : "Criar conta e continuar"}</button>

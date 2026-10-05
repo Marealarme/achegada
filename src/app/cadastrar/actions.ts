@@ -12,7 +12,7 @@ function slugDe(nome: string) {
 
 /** Cria a conta do dono e a pousada. Depois leva para a assinatura (cartão + 30 dias grátis). */
 export async function cadastrar(_: string, f: FormData): Promise<string> {
-  if (txt(f, "site")) return "Não foi possível concluir."; // armadilha para robôs (campo escondido)
+  if (txt(f, "zq_hp_7")) return "Não foi possível concluir."; // armadilha para robôs (campo escondido)
   const pousada = txt(f, "pousada");
   const uf = txt(f, "uf", 2).toUpperCase();
   const cidade = cidadeOficial(uf, txt(f, "cidade", 80));
