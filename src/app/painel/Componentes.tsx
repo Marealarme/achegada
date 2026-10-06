@@ -175,7 +175,7 @@ export function ImportarReservas() {
     <form onSubmit={(e) => enviar(e, mapear ? { mapear: "1" } : {})} className="newform" style={{ width: "100%" }}>
       <div className="field">
         <label htmlFor="arquivo">Planilha de reservas</label>
-        <input id="arquivo" name="arquivo" type="file" required={!arquivo} onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); setDescartada(resposta); }} />
+        <input id="arquivo" name="arquivo" type="file" accept=".xls,.xlsx,.csv,.xml,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/xml,application/xml" required={!arquivo} onChange={(e) => { setArquivo(e.target.files?.[0] ?? null); setDescartada(resposta); }} />
         <span className="hint">Envie a lista de reservas exportada do seu sistema (.xlsx, .xls ou .csv). Na primeira vez, o A Chegada pergunta em qual coluna está cada informação e guarda a resposta. Se preferir, use a <a href="/painel/modelo-reservas">planilha modelo</a>. Reservas já importadas não duplicam.</span>
       </div>
       {res && <p className={res.ok ? "" : mapear ? "" : "err"} role="status">{res.mensagem}</p>}
