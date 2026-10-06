@@ -34,7 +34,7 @@ export default function Conversor() {
     <div className="newform" style={{ display: "grid", gap: 12 }}>
       <div className="field">
         <label htmlFor="planilhas">Escolha a planilha (pode escolher várias)</label>
-        <input id="planilhas" type="file" multiple accept=".xls,.xlsx,.csv,.xml,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/xml,application/xml" onChange={(e) => { converter(e.target.files); e.target.value = ""; }} disabled={ocupado} />
+        <input id="planilhas" type="file" multiple onChange={(e) => { converter(e.target.files); e.target.value = ""; }} disabled={ocupado} />
         <span className="hint">Funciona com relatórios que abrem como “código” no Numbers (planilha XML 2003, .xls antigo) e com .csv. A conversão acontece no seu navegador: o arquivo não é enviado para lugar nenhum.</span>
       </div>
       {ocupado && <p className="muted small">Convertendo…</p>}
