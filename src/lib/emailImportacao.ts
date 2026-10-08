@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { supabaseServico } from "@/lib/supabase";
 
 /** Domínio que recebe as planilhas por e-mail (registro MX apontando para o Resend). */
-export const DOMINIO_IMPORTACAO = process.env.EMAIL_IMPORTACAO_DOMINIO || "reservas.innexperts.com.br";
+export const DOMINIO_IMPORTACAO = process.env.EMAIL_IMPORTACAO_DOMINIO || "mail.innexperts.com.br";
 
 export type UltimaImportacaoEmail = { em: string; ok: boolean; mensagem: string; arquivo?: string; de?: string };
 

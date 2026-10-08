@@ -6,7 +6,7 @@ import { DOMINIO_IMPORTACAO, type UltimaImportacaoEmail } from "@/lib/emailImpor
 
 // Importação de reservas por e-mail.
 // O pousadeiro manda a planilha do sistema de reservas para o endereço da pousada
-// (ex.: luachales-k7p2@reservas.innexperts.com.br). O Resend recebe o e-mail e avisa aqui.
+// (ex.: luachales-k7p2@mail.innexperts.com.br). O Resend recebe o e-mail e avisa aqui.
 // Variáveis da Vercel: RESEND_API_KEY (ler os anexos) e RESEND_WEBHOOK_SECRET (whsec_…).
 // Cadastre no Resend: Webhooks → evento email.received → https://achegada.innexperts.com.br/api/email/entrada
 
