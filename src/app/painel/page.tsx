@@ -6,6 +6,7 @@ import Cabecalho from "./Cabecalho";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
 import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
+import { enderecoImportacao } from "@/lib/emailImportacao";
 import { BaixarHospedes, BotoesMensagem, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
 
@@ -64,7 +65,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const segunda = await buscar(`${CAMPOS}, link_enviado_em`);
     lista = segunda.error ? (await buscar(CAMPOS)).data : segunda.data;
   }
-  const integracao = await fnrhLigada(sessao.pousada.id);
+  const [integracao, porEmail] = await Promise.all([fnrhLigada(sessao.pousada.id), enderecoImportacao(sessao.pousada.id)]);
 
   const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
     ...r,
@@ -186,7 +187,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
       )}
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} semTelefone={aEnviar.length - fila.length} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas /><NovaReserva unidades={unidades ?? []} /></div></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} semTelefone={aEnviar.length - fila.length} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas porEmail={porEmail} /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar reservas” para subir a planilha com as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (

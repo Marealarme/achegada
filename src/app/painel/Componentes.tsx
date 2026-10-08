@@ -153,7 +153,32 @@ export function BaixarHospedes() {
   );
 }
 
-export function ImportarReservas() {
+type PorEmail = { email: string; ultima: { em: string; ok: boolean; mensagem: string; arquivo?: string; de?: string } | null } | null;
+
+/** Endereço de e-mail da pousada para mandar a planilha pelo celular (sem escolher arquivo). */
+function ImportarPorEmail({ porEmail }: { porEmail: PorEmail }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!porEmail) return null;
+  const { email, ultima } = porEmail;
+  const quando = ultima ? new Date(ultima.em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+  return (
+    <div className="por-email">
+      <span className="label">Pelo celular: mande por e-mail</span>
+      <span className="hint">Encaminhe o arquivo de reservas (anexado) para o endereço abaixo. As reservas entram sozinhas em até 1 minuto. Funciona pelo WhatsApp, Mail ou Gmail: abra o arquivo, toque em Compartilhar e escolha o e-mail.</span>
+      <div className="por-email-linha">
+        <code>{email}</code>
+        <button className="btn" type="button" onClick={() => { navigator.clipboard?.writeText(email).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); }); }}>{copiado ? "Copiado ✓" : "Copiar"}</button>
+      </div>
+      {ultima && (
+        <p className={ultima.ok ? "ok small" : "err small"} role="status">
+          Último e-mail ({quando}{ultima.arquivo ? `, ${ultima.arquivo}` : ""}): {ultima.mensagem}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function ImportarReservas({ porEmail = null }: { porEmail?: PorEmail }) {
   const [aberto, setAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [resposta, acao, pendente] = useActionState(importarReservas, null);
@@ -173,6 +198,7 @@ export function ImportarReservas() {
   const mapear = res?.mapear;
   return (
     <form onSubmit={(e) => enviar(e, mapear ? { mapear: "1" } : {})} className="newform" style={{ width: "100%" }}>
+      <ImportarPorEmail porEmail={porEmail} />
       <div className="field">
         <span className="label">Planilha de reservas</span>
         <label htmlFor="arquivo" className={`arquivo-btn${arquivo ? " escolhido" : ""}`}>
