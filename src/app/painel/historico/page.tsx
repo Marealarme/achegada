@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { sessaoEquipe } from "@/lib/sessao";
+import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { cpfMascarado, dataCurta, noites } from "@/lib/util";
 import Cabecalho from "../Cabecalho";
 
@@ -32,6 +32,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
   const busca = q.trim().slice(0, 60);
   const data = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
   const desde = data(de), ateData = data(ate);
+  const periodo = `${desde ? `&de=${desde}` : ""}${ateData ? `&ate=${ateData}` : ""}`;
 
   // quem bate com a busca: titular da reserva OU qualquer hóspede (nome, CPF ou telefone)
   let ids: string[] | null = null;
@@ -65,7 +66,15 @@ export default async function Historico({ searchParams }: { searchParams: Promis
       <Cabecalho s={s} atual="historico" />
       <div className="desk unica">
         <section className="panel">
-          <div className="panel-head"><h2>Histórico de hóspedes</h2></div>
+          <div className="panel-head">
+            <h2>Histórico de hóspedes</h2>
+            {podeConfigurar(s) && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a className="btn" href={`/painel/exportar?tipo=marketing${periodo}`}>Lista para marketing</a>
+                <a className="btn primary" href={`/painel/exportar?${periodo.slice(1)}`}>Baixar Excel{desde || ateData ? " do período" : " com todos"}</a>
+              </div>
+            )}
+          </div>
           <form className="historico-busca" method="get">
             <div className="field" style={{ flex: 2, minWidth: 200 }}>
               <label htmlFor="q">Buscar</label>
@@ -83,7 +92,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
           </form>
           <p className="muted small">
             {error ? "Não foi possível carregar o histórico agora." :
-              `${estadias.length} estadia(s)${busca ? ` para “${busca}”` : ""}${estadias.length === 150 ? " (mostrando as 150 mais recentes; refine a busca)" : ""}. Para a planilha completa, use “Baixar hóspedes (Excel)” em Reservas.`}
+              `${estadias.length} estadia(s)${busca ? ` para “${busca}”` : ""}${estadias.length === 150 ? " (mostrando as 150 mais recentes; refine a busca)" : ""}.`}
           </p>
 
           {estadias.length === 0 && !error && <p className="muted">Nenhuma estadia encontrada.</p>}
