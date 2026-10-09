@@ -242,3 +242,11 @@ textarea { width: 100%; min-width: 0; font: 400 .95rem var(--body); color: var(-
 .por-email { display: grid; gap: 6px; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface-2); }
 .por-email-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .por-email-linha code { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 600 .95rem var(--mono, ui-monospace, monospace); background: var(--surface); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); }
+
+/* histórico de hóspedes */
+.historico-busca { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.historico { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.historico-ano { font-size: .85rem; letter-spacing: .08em; color: var(--muted); margin: 10px 0 2px; }
+.historico-item { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.historico-topo { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.historico-pessoas { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
