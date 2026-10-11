@@ -68,6 +68,22 @@ export async function marcarLinkEnviado(id: string) {
   if (!error) revalidatePath("/painel");
 }
 
+/** Corrige o WhatsApp do card. Aceita com ou sem DDI 55; guarda só os dígitos. */
+export async function corrigirTelefone(id: string, valor: string): Promise<string> {
+  const db = await supabaseEquipe();
+  const { data: auth } = await db.auth.getUser();
+  if (!auth.user) return "Sua sessão expirou. Entre de novo.";
+  let fone = valor.replace(/\D/g, "");
+  if (fone.length >= 12 && fone.startsWith("55")) fone = fone.slice(2);
+  const estrangeiro = valor.trim().startsWith("+") && fone.length >= 12 && fone.length <= 15;
+  if (!estrangeiro && fone.length !== 10 && fone.length !== 11)
+    return "Confira o número: DDD + número, ex.: (11) 91234-5678. Estrangeiro: comece com + e o código do país.";
+  const { data, error } = await db.from("reservas").update({ telefone: fone }).eq("id", id).select("id");
+  if (error || !data?.length) return "Não foi possível salvar. Tente de novo.";
+  revalidatePath("/painel");
+  return "";
+}
+
 // ---------- Fase 2: ficha FNRH automática ----------
 
 /** O governo responde 400 "Situação: Cancelada" quando a ficha já foi cancelada (ex.: direto no site da FNRH). */

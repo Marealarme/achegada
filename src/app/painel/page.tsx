@@ -7,7 +7,7 @@ import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@
 import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
-import { BaixarHospedes, BotoesMensagem, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
+import { BaixarHospedes, BotoesMensagem, EditarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +96,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <dl className="kv">
           <dt>Estadia</dt><dd>{dataCurta(atual.check_in)} a {dataCurta(atual.check_out)} · {noites(atual.check_in, atual.check_out)} noites</dd>
           <dt>Hóspedes</dt><dd>{atual.adultos} adultos{atual.criancas ? ` e ${atual.criancas} criança(s)` : ""}</dd>
-          <dt>WhatsApp</dt><dd className="mono">{atual.telefone ?? "—"}</dd>
+          <dt>WhatsApp</dt><dd><EditarWhatsApp reservaId={atual.id} telefone={atual.telefone} /></dd>
         </dl>
         <div className="field">
           <span className="label">Mensagem para o hóspede</span>

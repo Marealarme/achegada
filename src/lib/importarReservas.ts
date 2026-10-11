@@ -53,9 +53,9 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
 
   const refs = reservas.map((r) => r.referencia);
   const { data: existentes, error: errExist } = await db.from("reservas")
-    .select("id, referencia_externa, cancelada_em, checkin_em, fnrh_reserva_id, pre_chegadas(id)").eq("pousada_id", pousadaId).in("referencia_externa", refs.length ? refs : ["-"]);
+    .select("id, referencia_externa, telefone, cancelada_em, checkin_em, fnrh_reserva_id, pre_chegadas(id)").eq("pousada_id", pousadaId).in("referencia_externa", refs.length ? refs : ["-"]);
   if (errExist) return { ok: false, mensagem: "O banco ainda não está pronto para a importação. Rode as migrações 0005 e 0007 no Supabase." };
-  type Existente = { id: string; pre_chegadas: unknown; cancelada_em: string | null; checkin_em: string | null; fnrh_reserva_id: string | null };
+  type Existente = { id: string; telefone: string | null; pre_chegadas: unknown; cancelada_em: string | null; checkin_em: string | null; fnrh_reserva_id: string | null };
   const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as unknown as Existente]));
 
   let criadas = 0, atualizadas = 0, canceladas = 0;
@@ -97,7 +97,10 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     if (atual) {
       const jaFez = Array.isArray(atual.pre_chegadas) ? atual.pre_chegadas.length > 0 : !!atual.pre_chegadas;
       if (jaFez) { ignoradas.push(`${quem}: já fez o check-in online (mantida como está)`); continue; }
-      const { error } = await db.from("reservas").update(dados).eq("id", atual.id);
+      // telefone já válido no card (pode ter sido corrigido à mão no painel): a planilha não sobrescreve
+      const foneCard = (atual.telefone ?? "").replace(/\D/g, "");
+      const { telefone, ...resto } = dados;
+      const { error } = await db.from("reservas").update(foneCard.length >= 10 ? resto : { ...resto, telefone }).eq("id", atual.id);
       if (error) ignoradas.push(`${quem}: não foi possível atualizar`); else atualizadas++;
     } else {
       const { error } = await db.from("reservas").insert({

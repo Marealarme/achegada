@@ -4,7 +4,7 @@ import { startTransition, useActionState, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { enviarSemApagar } from "@/lib/enviarSemApagar";
 import { CAMPOS } from "@/lib/camposPlanilha";
-import { criarReserva, importarReservas, marcarLinkEnviado } from "./actions";
+import { corrigirTelefone, criarReserva, importarReservas, marcarLinkEnviado } from "./actions";
 
 type Unidade = { id: string; nome: string };
 
@@ -90,6 +90,39 @@ export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTel
       )}
       {semTelefone > 0 && <span className="hint">{semTelefone} reserva(s) sem WhatsApp cadastrado ficaram fora da fila.</span>}
     </div>
+  );
+}
+
+/** WhatsApp do card com botão para corrigir (número errado ou faltando na planilha). */
+export function EditarWhatsApp({ reservaId, telefone }: { reservaId: string; telefone: string | null }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(telefone ?? "");
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  useEffect(() => { setEditando(false); setErro(""); setValor(telefone ?? ""); }, [reservaId, telefone]);
+  if (!editando)
+    return (
+      <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="mono">{telefone || "—"}</span>
+        <button className="btn ghost" type="button" style={{ padding: "4px 10px", fontSize: 13 }} onClick={() => setEditando(true)}>
+          {telefone ? "Corrigir" : "Adicionar"}
+        </button>
+      </span>
+    );
+  async function salvar() {
+    setSalvando(true);
+    const r = await corrigirTelefone(reservaId, valor).catch(() => "Não foi possível salvar. Tente de novo.");
+    setSalvando(false);
+    if (r) setErro(r); else setEditando(false);
+  }
+  return (
+    <span style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+      <input type="tel" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="(11) 91234-5678" autoFocus
+        style={{ maxWidth: 190 }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); salvar(); } }} />
+      <button className="btn primary" type="button" disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar"}</button>
+      <button className="btn" type="button" onClick={() => { setEditando(false); setErro(""); setValor(telefone ?? ""); }}>Cancelar</button>
+      {erro && <span className="err small" role="alert" style={{ width: "100%" }}>{erro}</span>}
+    </span>
   );
 }
 
