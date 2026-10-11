@@ -77,7 +77,9 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
       if (!error) { canceladas++; await db.from("fnrh_envios").delete().eq("reserva_id", atualCard.id); }
       continue;
     }
-    if (!/confirm/i.test(r.status)) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
+    // confirmada ou já hospedada no sistema (status "Check-in"/"Hospedado"): entra no painel — quem já chegou também precisa da ficha
+    const valida = /confirm|check.?in|hospedad|in.?house|checked.?in/i.test(r.status) && !/check.?out/i.test(r.status);
+    if (!valida) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
     if (r.checkOut < hoje) { ignoradas.push(`${quem}: estadia já terminou`); continue; }
     if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
     const dados = {
