@@ -45,7 +45,7 @@ export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
 /** Abre o WhatsApp do colaborador com a mensagem pronta; ele só aperta enviar. Registra o envio no card. */
 function linkWhatsApp(telefone: string | null, mensagem: string) {
   let numero = (telefone ?? "").replace(/\D/g, "");
-  if (numero && numero.length <= 11) numero = "55" + numero;
+  if (numero && numero.length <= 11 && !(telefone ?? "").trim().startsWith("+")) numero = "55" + numero;
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
 }
 

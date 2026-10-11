@@ -73,11 +73,17 @@ export async function corrigirTelefone(id: string, valor: string): Promise<strin
   const db = await supabaseEquipe();
   const { data: auth } = await db.auth.getUser();
   if (!auth.user) return "Sua sessão expirou. Entre de novo.";
-  let fone = valor.replace(/\D/g, "");
-  if (fone.length >= 12 && fone.startsWith("55")) fone = fone.slice(2);
-  const estrangeiro = valor.trim().startsWith("+") && fone.length >= 12 && fone.length <= 15;
-  if (!estrangeiro && fone.length !== 10 && fone.length !== 11)
-    return "Confira o número: DDD + número, ex.: (11) 91234-5678. Estrangeiro: comece com + e o código do país.";
+  const digitos = valor.replace(/\D/g, "");
+  let fone: string;
+  if (valor.trim().startsWith("+") && !digitos.startsWith("55")) {
+    // estrangeiro: guarda com "+" e o código do país, para o WhatsApp não colocar 55 na frente
+    if (digitos.length < 8 || digitos.length > 15) return "Confira o número estrangeiro: + código do país + número.";
+    fone = "+" + digitos;
+  } else {
+    fone = digitos.length >= 12 && digitos.startsWith("55") ? digitos.slice(2) : digitos;
+    if (fone.length !== 10 && fone.length !== 11)
+      return "Confira o número: DDD + número, ex.: (11) 91234-5678. Estrangeiro: comece com + e o código do país.";
+  }
   const { data, error } = await db.from("reservas").update({ telefone: fone }).eq("id", id).select("id");
   if (error || !data?.length) return "Não foi possível salvar. Tente de novo.";
   revalidatePath("/painel");

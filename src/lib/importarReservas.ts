@@ -84,7 +84,8 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
     const dados = {
       titular: r.titular || "Hóspede",
-      telefone: r.telefone.replace(/\D/g, "") || null,
+      // estrangeiro (+1, +351…) fica com "+" para o WhatsApp não colocar 55 na frente
+      telefone: r.telefone.replace(/\D/g, "") ? (r.telefone.trim().startsWith("+") && !r.telefone.replace(/\D/g, "").startsWith("55") ? "+" : "") + r.telefone.replace(/\D/g, "") : null,
       check_in: r.checkIn,
       check_out: r.checkOut,
       adultos: Math.min(12, Math.max(1, r.adultos)),

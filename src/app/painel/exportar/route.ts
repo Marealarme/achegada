@@ -42,6 +42,7 @@ function telefoneBR(v: string | null | undefined) {
   const t = String(v ?? "").trim();
   let d = t.replace(/\D/g, "");
   if (!d) return "";
+  if (t.startsWith("+") && !d.startsWith("55")) return t; // estrangeiro
   if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
   if (d.length === 10 || d.length === 11) return `+55 ${d.slice(0, 2)} ${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
   return t;
