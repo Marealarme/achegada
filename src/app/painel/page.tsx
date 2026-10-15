@@ -35,11 +35,12 @@ function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: st
 }
 
 /** Etapa da reserva na lista: ficha não enviada / ficha enviada / hospedado. */
-function etapa(r: { pre: unknown; checkin_em?: string | null; checkout_em?: string | null }) {
+function etapa(r: { pre: unknown; checkin_em?: string | null; checkout_em?: string | null; link_enviado_em?: string | null }) {
   if (r.checkout_em) return { cls: "ok", txt: "Saiu" };
   if (r.checkin_em) return { cls: "ok", txt: "Hospedado" };
   if (r.pre) return { cls: "pre", txt: "Ficha enviada" };
-  return { cls: "link", txt: "Ficha não enviada" };
+  // o hóspede ainda não preencheu; mostra se a recepção já mandou o link
+  return r.link_enviado_em ? { cls: "wait", txt: "Ficha não enviada · link enviado" } : { cls: "link", txt: "Ficha não enviada · enviar link" };
 }
 
 function quando(iso: string) {
