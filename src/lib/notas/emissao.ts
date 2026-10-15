@@ -19,11 +19,11 @@ export function periodoPlano(cicloDia?: number): { ini: string; fim: string; rot
   return { ini: ini.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10), rotulo: `${br(ini)} a ${br(fim)}` };
 }
 
-/** Quantas notas a pousada já mandou para a Digisan no período do plano (rejeitadas na validação não contam). */
+/** Quantas notas a pousada já mandou para a Digisan no período do plano (rejeitadas não contam: a Digisan não cobra). */
 export async function notasNoPeriodo(db: SupabaseClient, pousadaId: string, cicloDia?: number): Promise<number> {
   const p = periodoPlano(cicloDia);
   const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true })
-    .eq("pousada_id", pousadaId).not("digisan_id", "is", null).gte("criada_em", `${p.ini}T03:00:00Z`).lt("criada_em", `${p.fim}T03:00:00Z`);
+    .eq("pousada_id", pousadaId).not("digisan_id", "is", null).neq("status", "rejeitada").gte("criada_em", `${p.ini}T03:00:00Z`).lt("criada_em", `${p.fim}T03:00:00Z`);
   return count ?? 0;
 }
 
