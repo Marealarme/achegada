@@ -29,7 +29,7 @@ export async function emitirNotas(reservaIds: string[]): Promise<ResultadoEmissa
 
   // fase de teste: até você liberar, só UMA nota pode ser emitida
   if (!cfg.liberada) {
-    const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).not("digisan_id", "is", null);
+    const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).not("digisan_id", "is", null).neq("status", "rejeitada"); // rejeitada não gerou nota: pode tentar de novo
     if ((count ?? 0) > 0 || ids.length > 1)
       return { ok: false, mensagens: ["Fase de teste: só uma nota pode ser emitida até a primeira ser conferida e a emissão ser liberada."] };
   }

@@ -24,7 +24,8 @@ export type NfseConfig = {
   enviarPorEmail?: boolean;
   limiteMensal?: number;                 // plano da Digisan (padrão 160)
   cicloDia?: number;                     // dia em que o período do plano vira (ex.: 6 = de 06 a 06)
-  prefixoDescricao?: string;             // começo do texto da nota (padrão "Hospedagem"); muda junto com o serviço
+  telefoneTomador?: boolean;             // enviar telefone do tomador (São Sebastião não aceita → padrão: não envia)
+  prefixoDescricao?: string;            // começo do texto da nota (padrão "Hospedagem"); muda junto com o serviço
   servico: Record<string, unknown>;      // copiado tal como está em Cadastros > Serviços (código, alíquota, CNAE, NBS…)
 };
 
@@ -66,7 +67,8 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
     nome: h.nome,
     tipoPessoa: "FISICA",
     ...(h.email ? { email: h.email } : {}),
-    ...(digitos(h.telefone ?? l.telefoneCard) ? { telefone: digitos(h.telefone ?? l.telefoneCard) } : {}),
+    // São Sebastião recusa a tag TelefoneTomador: o telefone só vai quando a config pedir (telefoneTomador: true)
+    ...(cfg.telefoneTomador && digitos(h.telefone ?? l.telefoneCard) ? { telefone: digitos(h.telefone ?? l.telefoneCard) } : {}),
   };
   if (!l.estrangeiro && h.cpf) {
     tomador.cpfCnpj = digitos(h.cpf);
