@@ -119,7 +119,7 @@ export async function procurarPorIdExterno(cnpj: string, idExterno: string, comp
       : `?cursor=${encodeURIComponent(cursor)}`;
     const r = await chamar(`/nfse${q}`);
     if (!r.ok || !r.corpo) return null;
-    const lista = (Array.isArray(r.corpo) ? r.corpo : (r.corpo.dados ?? r.corpo.data ?? r.corpo.items ?? r.corpo.notas ?? [])) as Record<string, unknown>[];
+    const lista = (Array.isArray(r.corpo) ? r.corpo : (r.corpo.itens ?? r.corpo.dados ?? r.corpo.data ?? r.corpo.items ?? r.corpo.notas ?? [])) as Record<string, unknown>[];
     const achou = lista.find((n) => String(n.idExterno ?? "") === idExterno);
     if (achou) return achou;
     cursor = String((r.corpo as Record<string, unknown>).cursor ?? (r.corpo as Record<string, unknown>).proximoCursor ?? "");

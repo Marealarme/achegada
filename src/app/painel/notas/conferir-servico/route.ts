@@ -22,9 +22,10 @@ export async function GET(req: Request) {
     const r = await listarNfse(q);
     if (!r.ok || !r.corpo) return Response.json({ erro: r.status, corpo: r.corpo, msg: r.erro });
     const c = r.corpo as Record<string, unknown>;
-    const lista = (Array.isArray(c) ? c : (c.dados ?? c.data ?? c.items ?? c.notas ?? [])) as Record<string, unknown>[];
+    const lista = (Array.isArray(c) ? c : (c.itens ?? c.dados ?? c.data ?? c.items ?? c.notas ?? [])) as Record<string, unknown>[];
     for (const n of lista) if (String(n.numero ?? "") === numero || String(n.numero ?? "").replace(/^0+/, "") === numero) achadas.push(n);
-    if (pag === 0 && !lista.length) return Response.json({ semNotas: true, chaves: Object.keys(c) });
+    if (pag === 0 && !lista.length) return Response.json({ semNotas: true, corpo: c });
+    if (pag === 0) achadas.length || console.log(lista.map((n) => n.numero));
     cursor = String(c.cursor ?? c.proximoCursor ?? "");
     if (achadas.length || !cursor) break;
   }
