@@ -9,13 +9,16 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const s = await sessaoEquipe({ exigirAssinatura: true });
   if (s.perfil.papel !== "dono") return new Response("Só o dono.", { status: 403 });
-  const numero = new URL(req.url).searchParams.get("numero") ?? "272";
+  const u = new URL(req.url).searchParams;
+  const numero = u.get("numero") ?? "272";
+  const de = /^\d{4}-\d{2}-\d{2}$/.test(u.get("de") ?? "") ? u.get("de")! : "2026-10-01";
+  const ate = /^\d{4}-\d{2}-\d{2}$/.test(u.get("ate") ?? "") ? u.get("ate")! : "2026-10-15";
   const { data: p } = await supabaseServico().from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const cnpj = String((p?.nfse_config as { prestadorCnpj?: string } | null)?.prestadorCnpj ?? "").replace(/\D/g, "");
   const achadas: unknown[] = [];
   let cursor = "";
   for (let pag = 0; pag < 10; pag++) {
-    const q = pag === 0 ? `cnpj=${cnpj}&dataReferencia=EMISSAO&dataInicio=2026-09-01&dataFim=2026-10-31&limit=100` : `cursor=${encodeURIComponent(cursor)}`;
+    const q = pag === 0 ? `cnpj=${cnpj}&dataReferencia=EMISSAO&dataInicio=${de}&dataFim=${ate}&limit=100` : `cursor=${encodeURIComponent(cursor)}`;
     const r = await listarNfse(q);
     if (!r.ok || !r.corpo) return Response.json({ erro: r.status, corpo: r.corpo, msg: r.erro });
     const c = r.corpo as Record<string, unknown>;
