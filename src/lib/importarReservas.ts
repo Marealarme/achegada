@@ -67,7 +67,7 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     return v;
   };
 
-  let criadas = 0, atualizadas = 0, canceladas = 0;
+  let criadas = 0, atualizadas = 0, canceladas = 0, valoresPassados = 0;
   const ignoradas: string[] = [...(avisos ?? [])];
   for (const r of reservas) {
     const quem = r.titular || r.referencia;
@@ -89,7 +89,13 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     // confirmada ou já hospedada no sistema (status "Check-in"/"Hospedado"): entra no painel — quem já chegou também precisa da ficha
     const valida = /confirm|check.?in|hospedad|in.?house|checked.?in/i.test(r.status) && !/check.?out/i.test(r.status);
     if (!valida) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
-    if (r.checkOut < hoje) { ignoradas.push(`${quem}: estadia já terminou`); continue; }
+    if (r.checkOut < hoje) {
+      // estadia já terminou: não cria card novo, mas completa o valor de quem já está no painel (relatório de notas fiscais)
+      const passado = porRef.get(r.referencia), v = valores(r);
+      if (passado && Object.keys(v).length) { await db.from("reservas").update(v).eq("id", passado.id); valoresPassados++; }
+      else ignoradas.push(`${quem}: estadia já terminou`);
+      continue;
+    }
     if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
     const dados = {
       titular: r.titular || "Hóspede",
@@ -129,6 +135,7 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
   revalidatePath("/painel");
   const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
   if (canceladas) partes.push(`${canceladas} cancelada(s) na planilha`);
+  if (valoresPassados) partes.push(`valor completado em ${valoresPassados} estadia(s) que já terminaram`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
   const aviso = leitura.mapaNovo && semMapas ? " (ligação de colunas não ficou salva: rode a migração 0008 no Supabase)" : "";
   return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.${aviso}`, detalhes: ignoradas, ligacaoSalva: usouLigacao };
