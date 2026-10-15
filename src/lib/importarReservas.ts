@@ -88,12 +88,12 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     }
     // confirmada ou já hospedada no sistema (status "Check-in"/"Hospedado"): entra no painel — quem já chegou também precisa da ficha
     const valida = /confirm|check.?in|hospedad|in.?house|checked.?in/i.test(r.status) && !/check.?out/i.test(r.status);
-    if (!valida) { ignoradas.push(`${quem}: status "${r.status || "sem status"}"`); continue; }
-    if (r.checkOut < hoje) {
-      // estadia já terminou: não cria card novo, mas completa o valor de quem já está no painel (relatório de notas fiscais)
-      const passado = porRef.get(r.referencia), v = valores(r);
-      if (passado && Object.keys(v).length) { await db.from("reservas").update(v).eq("id", passado.id); valoresPassados++; }
-      else ignoradas.push(`${quem}: estadia já terminou`);
+    if (r.checkOut < hoje || !valida) {
+      // estadia que já terminou (no sistema fica "Check-out") ou fora do fluxo: não cria nem muda card,
+      // só completa o valor de quem já está no painel (relatório de notas fiscais)
+      const v = valores(r);
+      if (atualCard && !/cancel/i.test(r.status) && Object.keys(v).length) { await db.from("reservas").update(v).eq("id", atualCard.id); valoresPassados++; }
+      else ignoradas.push(`${quem}: ${!valida ? `status "${r.status || "sem status"}"` : "estadia já terminou"}`);
       continue;
     }
     if (r.checkOut <= r.checkIn) { ignoradas.push(`${quem}: datas inválidas`); continue; }
