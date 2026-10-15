@@ -3,6 +3,8 @@ import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cpfFormatar, noites } from "@/lib/util";
 import { GENEROS, MEIOS_TRANSPORTE, MOTIVOS_VIAGEM, PAISES } from "@/lib/fnrh/dominios";
+import { linhasNotas } from "@/lib/notas/linhas";
+import { ROTULO_STATUS } from "@/lib/notas/status";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -215,59 +217,44 @@ export async function GET(req: Request) {
       "Último chalé": c.ultimoChale,
       "Aceita receber ofertas": c.h.consentimento_marketing_em ? "Sim" : "Não",
     }));
-    // ---------- Notas fiscais: uma linha por reserva não cancelada, com ou sem check-in online ----------
-    type HospNF = { nome: string; cpf: string | null; passaporte: string | null; email: string | null; telefone: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; cidade: string | null; uf: string | null; pais_residencia: string | null };
-    type ResNF = {
-      titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
-      referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null;
-      unidades: { nome: string } | null; hospedes_reserva: { papel: string; hospedes: HospNF | null }[];
-    };
-    const camposNF = (extra: string) => `titular, telefone, check_in, check_out, origem${extra}, unidades(nome), hospedes_reserva(papel, hospedes(nome, cpf, passaporte, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, pais_residencia))`;
-    const reservasNF: ResNF[] = [];
-    // notas do mês: reservas com CHECK-OUT no período escolhido, sem canceladas e sem fichas de teste
-    for (const [extra, semTeste] of [[", referencia_externa, ota_referencia, valor_total, valor_pago", true], [", referencia_externa, ota_referencia, valor_total, valor_pago", false], [", referencia_externa, ota_referencia", false], ["", false]] as const) {
-      let q = db.from("reservas").select(camposNF(extra)).eq("pousada_id", s.pousada.id).is("cancelada_em", null).order("check_out").limit(5000);
-      if (semTeste) q = q.is("descartada_em", null);
-      if (de) q = q.gte("check_out", de);
-      if (ate) q = q.lte("check_out", ate);
-      const { data, error } = await q;
-      if (!error) { reservasNF.push(...((data ?? []) as unknown as ResNF[])); break; }
-    }
-    const notas = reservasNF.map((r) => {
-      const h = r.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes ?? null;
-      const total = r.valor_total == null ? null : Number(r.valor_total);
-      const estrangeiro = !!h?.pais_residencia && h.pais_residencia !== "BR";
-      const pendencias = [
-        !numeroReserva(r.referencia_externa) ? "sem reserva" : "",
-        !h || (!h.cpf && !h.passaporte) ? "sem CPF" : "",
-        !h || (!estrangeiro && (!h.cep || !h.logradouro)) ? "sem endereço" : "",
-        total == null || total === 0 ? "sem valor" : "",
-      ].filter(Boolean);
-      const pago = r.valor_pago == null ? null : Number(r.valor_pago);
+    // ---------- Notas fiscais: uma linha por reserva com check-out no período (mesma regra da tela de emissão) ----------
+    const linhasNF = await linhasNotas(db, s.pousada.id, de, ate);
+    const { data: notasEmitidas } = await db.from("notas_fiscais").select("reserva_id, status, numero, mensagem, criada_em")
+      .eq("pousada_id", s.pousada.id).in("reserva_id", linhasNF.length ? linhasNF.map((l) => l.reservaId) : ["00000000-0000-0000-0000-000000000000"])
+      .order("criada_em", { ascending: false });
+    const ultimaNota = new Map<string, { status: string; numero: string | null; mensagem: string | null }>();
+    for (const n of (notasEmitidas ?? []) as { reserva_id: string; status: string; numero: string | null; mensagem: string | null }[])
+      if (!ultimaNota.has(n.reserva_id)) ultimaNota.set(n.reserva_id, n);
+    const notas = linhasNF.map((l) => {
+      const h = l.tomador;
+      const nf = ultimaNota.get(l.reservaId);
       return {
-        "Nº da reserva": numeroReserva(r.referencia_externa),
-        "Código no canal": r.ota_referencia ?? "",
-        "Canal": r.origem ?? "",
-        "Check-in": dataBr(r.check_in),
-        "Check-out": dataBr(r.check_out),
-        "Noites": noites(r.check_in, r.check_out),
-        "Chalé / quarto": r.unidades?.nome ?? "",
-        "Titular (tomador)": h?.nome ?? r.titular,
+        "Nº da reserva": l.numeroReserva,
+        "Código no canal": l.codigoCanal,
+        "Canal": l.canal,
+        "Check-in": dataBr(l.checkIn),
+        "Check-out": dataBr(l.checkOut),
+        "Noites": l.noites,
+        "Chalé / quarto": l.chale,
+        "Titular (tomador)": l.titular,
         "CPF": h?.cpf ? cpfFormatar(h.cpf) : "",
         "Passaporte": h?.passaporte ?? "",
         "E-mail": h?.email ?? "",
-        "Telefone": telefoneBR(h?.telefone ?? r.telefone),
+        "Telefone": telefoneBR(h?.telefone ?? l.telefoneCard),
         "CEP": h?.cep ?? "",
         "Endereço": h ? [h.logradouro, h.numero, h.complemento].filter(Boolean).join(", ") : "",
         "Bairro": h?.bairro ?? "",
         "Cidade": h?.cidade ?? "",
         "UF": h?.uf ?? "",
         "País": h ? rotulo(PAISES, h.pais_residencia) : "",
-        "Valor total": dinheiro(total),
-        "Pago": dinheiro(pago),
-        "Pendente": total != null && pago != null ? Math.round((total - pago) * 100) / 100 : "",
-        "Pendência": pendencias.length ? pendencias.join(" / ") : "OK",
+        "Valor total": dinheiro(l.total),
+        "Pago": dinheiro(l.pago),
+        "Pendente": l.total != null && l.pago != null ? Math.round((l.total - l.pago) * 100) / 100 : "",
+        "Pendência": l.pendencias.length ? l.pendencias.join(" / ") : "OK",
         "Check-in online": h ? "Sim" : "Não",
+        "Status da nota": nf ? ROTULO_STATUS[nf.status] ?? nf.status : "Não emitida",
+        "Nº da nota": nf?.numero ?? "",
+        "Motivo": nf?.status === "rejeitada" ? nf.mensagem ?? "" : "",
       };
     });
 

@@ -263,3 +263,19 @@ textarea { width: 100%; min-width: 0; font: 400 .95rem var(--body); color: var(-
 /* lista de reservas: copiar mensagem curta */
 .item-acoes { display: flex; justify-content: flex-end; gap: 6px; padding: 0 12px 8px; }
 .btn.mini { padding: 4px 10px; font-size: 0.8rem; }
+
+/* Notas fiscais (NFS-e) */
+.nf-contador { display: inline-block; padding: 6px 12px; border-radius: 8px; background: var(--surface-2); margin: 4px 0 8px; }
+.nf-contador.alerta { background: var(--warn-soft); color: var(--warn); }
+.nf-contador.cheio { background: #f6dede; color: var(--bad); }
+.nf-tabela-wrap { overflow-x: auto; }
+.nf-tabela { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.nf-tabela th, .nf-tabela td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.nf-tabela th { font-weight: 600; color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.nf-tabela .num { text-align: right; white-space: nowrap; }
+.nf-msgs { background: var(--surface-2); border-radius: 8px; padding: 8px 12px 8px 28px; margin: 0 0 12px; }
+.nf-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.nf-caixa { background: var(--surface); color: var(--ink); border-radius: 12px; padding: 20px; width: min(560px, 100%); max-height: 90vh; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.nf-lista { list-style: none; padding: 0; margin: 0; max-height: 40vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.nf-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.nf-total { text-align: right; font-size: 1.05rem; margin: 0; }

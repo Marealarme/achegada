@@ -7,7 +7,7 @@ const STATUS: Record<string, string> = {
   trialing: "Teste grátis", active: "Assinatura ativa", past_due: "Pagamento pendente", isenta: "",
 };
 
-export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" | "config" | "assinatura" | "converter" | "historico" | "sem-reserva" }) {
+export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" | "config" | "assinatura" | "converter" | "historico" | "sem-reserva" | "notas" }) {
   const gestor = s.perfil.papel === "dono" || s.perfil.papel === "gerente";
   const diasTeste = s.pousada.assinatura_status === "trialing" && s.pousada.teste_ate
     ? Math.max(0, Math.ceil((Date.parse(s.pousada.teste_ate) - Date.now()) / 864e5)) : null;
@@ -35,6 +35,7 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
         <Link href="/painel" aria-current={atual === "reservas" ? "page" : undefined}>Reservas</Link>
         <Link href="/painel/historico" aria-current={atual === "historico" ? "page" : undefined}>Histórico</Link>
         <Link href="/painel/sem-reserva" aria-current={atual === "sem-reserva" ? "page" : undefined}>Fichas sem reserva</Link>
+        {gestor && <Link href="/painel/notas" aria-current={atual === "notas" ? "page" : undefined}>Notas fiscais</Link>}
         <Link href="/painel/converter" aria-current={atual === "converter" ? "page" : undefined}>Converter planilha</Link>
         {gestor && <Link href="/painel/config" aria-current={atual === "config" ? "page" : undefined}>Configurações</Link>}
         {s.perfil.papel === "dono" && s.pousada.assinatura_status !== "isenta" && (
