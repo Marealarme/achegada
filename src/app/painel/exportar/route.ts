@@ -241,7 +241,7 @@ export async function GET(req: Request) {
         !numeroReserva(r.referencia_externa) ? "sem reserva" : "",
         !h || (!h.cpf && !h.passaporte) ? "sem CPF" : "",
         !h || (!estrangeiro && (!h.cep || !h.logradouro)) ? "sem endereço" : "",
-        total == null ? "sem valor" : "",
+        total == null || total === 0 ? "sem valor" : "",
       ].filter(Boolean);
       const pago = r.valor_pago == null ? null : Number(r.valor_pago);
       return {

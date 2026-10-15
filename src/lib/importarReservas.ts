@@ -92,7 +92,12 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
   for (const r of reservas) {
     const quem = r.titular || r.referencia;
     const atualCard = porRef.get(r.referencia);
-    if (atualCard?.cancelada_em) { ignoradas.push(`${quem}: card cancelado no painel (mantido cancelado)`); continue; }
+    if (atualCard?.cancelada_em) {
+      // card cancelado no painel: continua cancelado, mas guarda o valor (se for vinculado depois, o valor vai junto)
+      const v = valores(r);
+      if (Object.keys(v).length) await db.from("reservas").update(v).eq("id", atualCard.id);
+      ignoradas.push(`${quem}: card cancelado no painel (mantido cancelado)`); continue;
+    }
     if (/cancel/i.test(r.status) && atualCard && !atualCard.checkin_em) {
       // cancelada na planilha: cancela o card (e a ficha no governo, se já tinha ido)
       if (atualCard.fnrh_reserva_id) {
