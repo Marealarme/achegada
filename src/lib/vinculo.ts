@@ -13,12 +13,27 @@ export function palavrasNome(nome: string): string[] {
     .split(/\s+/).filter((p) => p.length > 1 && !PARTICULAS.has(p));
 }
 
+/** Palavras iguais, ou com 1 letra de diferença quando têm 5+ letras ("Teixiera" = "Teixeira"). */
+function palavraIgual(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, dif = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++dif > 2) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+  }
+  dif += a.length - i + (b.length - j);
+  // troca de duas letras vizinhas conta como 1 diferença
+  return dif <= 1 || (dif === 2 && a.length === b.length && [...a].sort().join("") === [...b].sort().join(""));
+}
+
 /** Nome parcial vale: todas as palavras do nome mais curto aparecem no mais longo ("Marcos Rangel" ⊂ "Marcos Rangel da Silva"). */
 export function nomesCompativeis(a: string, b: string): boolean {
   const A = palavrasNome(a), B = palavrasNome(b);
   if (!A.length || !B.length) return false;
   const [menor, maior] = A.length <= B.length ? [A, B] : [B, A];
-  return menor.every((p) => maior.includes(p));
+  return menor.every((p) => maior.some((q) => palavraIgual(p, q)));
 }
 
 /** Últimos 8 dígitos do telefone (ignora DDI/DDD e o 9 extra). */
