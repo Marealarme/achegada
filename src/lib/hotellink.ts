@@ -14,12 +14,27 @@ export type ReservaHL = {
   quarto: string;    // primeiro quarto alocado, já com nome bonito ("Mezanino Maresias"); "" se não alocado
   adultos: number;
   criancas: number;
+  valorTotal?: number | null; // valor total da reserva (para a nota fiscal; o hóspede não vê)
+  valorPago?: number | null;
 };
 
 const MESES: Record<string, string> = {
   jan: "01", feb: "02", fev: "02", mar: "03", apr: "04", abr: "04", may: "05", mai: "05", jun: "06",
   jul: "07", aug: "08", ago: "08", sep: "09", set: "09", oct: "10", out: "10", nov: "11", dec: "12", dez: "12", ene: "01", dic: "12",
 };
+
+/** Valor em dinheiro: "1070", "598.5", "1.070,00", "R$ 1.070,50", "1,070.50". */
+export function valorPlanilha(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? Math.round(v * 100) / 100 : null;
+  let t = String(v ?? "").replace(/[^\d,.-]/g, "");
+  if (!/\d/.test(t)) return null;
+  const ul = Math.max(t.lastIndexOf(","), t.lastIndexOf("."));
+  // o último separador com 1 ou 2 casas depois é o decimal; os outros são milhar
+  if (ul >= 0 && t.length - ul - 1 <= 2) t = t.slice(0, ul).replace(/[,.]/g, "") + "." + t.slice(ul + 1);
+  else t = t.replace(/[,.]/g, "");
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
 
 const OTAS = ["booking", "airbnb", "expedia", "decolar", "hoteis.com", "hotels.com", "trip.com", "agoda", "despegar"];
 
@@ -119,6 +134,8 @@ function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } 
     status: col("Status", "Estado", "Situação"),
     quarto: col("Nome/Número do Quarto", "Room Name/Number", "Room Name", "Room", "Nombre/Número de la habitación", "Habitación", "Quarto"),
     pessoas: col("Número Total de Hóspedes", "Total Number of Guests", "Total Guests", "Número total de huéspedes", "Guests", "Huéspedes"),
+    valor: col("Valor Total", "Total Amount", "Total Price", "Grand Total", "Importe Total", "Precio Total", "Monto Total"),
+    pago: col("Pago", "Paid", "Amount Paid", "Pagado", "Valor Pago"),
   };
   if (i.ref < 0 || i.hospede < 0 || i.entrada < 0 || i.saida < 0)
     return { reservas: [], erro: "Não encontrei as colunas de referência, hóspede e datas. Use a planilha modelo do painel." };
@@ -141,6 +158,8 @@ function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } 
       status: limpo(c[i.status]),
       quarto: quartoHL(c[i.quarto] ?? ""),
       ...hospedesHL(c[i.pessoas] ?? ""),
+      valorTotal: i.valor >= 0 ? valorPlanilha(c[i.valor]) : null,
+      valorPago: i.pago >= 0 ? valorPlanilha(c[i.pago]) : null,
     });
   }
   if (!reservas.length) return { reservas, erro: "Não encontrei nenhuma reserva neste arquivo." };

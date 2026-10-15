@@ -57,6 +57,15 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
   if (errExist) return { ok: false, mensagem: "O banco ainda não está pronto para a importação. Rode as migrações 0005 e 0007 no Supabase." };
   type Existente = { id: string; telefone: string | null; pre_chegadas: unknown; cancelada_em: string | null; checkin_em: string | null; fnrh_reserva_id: string | null };
   const porRef = new Map((existentes ?? []).map((r) => [r.referencia_externa as string, r as unknown as Existente]));
+  // valor da reserva (migração 0011); sem a coluna, importa normalmente sem o valor
+  const { error: semValor } = await db.from("reservas").select("valor_total").limit(1);
+  const valores = (r: (typeof reservas)[number]) => {
+    if (semValor) return {};
+    const v: { valor_total?: number; valor_pago?: number } = {};
+    if (r.valorTotal != null) v.valor_total = r.valorTotal;
+    if (r.valorPago != null) v.valor_pago = r.valorPago;
+    return v;
+  };
 
   let criadas = 0, atualizadas = 0, canceladas = 0;
   const ignoradas: string[] = [...(avisos ?? [])];
@@ -93,11 +102,17 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
       unidade_id: await idUnidade(r.quarto),
       origem: r.origem || null,
       ota_referencia: ehOta(r.origem) ? r.otaReferencia || r.referencia : null,
+      ...valores(r),
     };
     const atual = porRef.get(r.referencia);
     if (atual) {
       const jaFez = Array.isArray(atual.pre_chegadas) ? atual.pre_chegadas.length > 0 : !!atual.pre_chegadas;
-      if (jaFez) { ignoradas.push(`${quem}: já fez o check-in online (mantida como está)`); continue; }
+      if (jaFez) {
+        // já fez o check-in online: não mexe nos dados da estadia, só atualiza o valor (pode ter mudado no sistema)
+        const v = valores(r);
+        if (Object.keys(v).length) await db.from("reservas").update(v).eq("id", atual.id);
+        ignoradas.push(`${quem}: já fez o check-in online (mantida como está)`); continue;
+      }
       // telefone já válido no card (pode ter sido corrigido à mão no painel): a planilha não sobrescreve
       const foneCard = (atual.telefone ?? "").replace(/\D/g, "");
       const { telefone, ...resto } = dados;

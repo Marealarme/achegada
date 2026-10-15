@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { createHash } from "node:crypto";
 import { CAMPOS, type Campo } from "./camposPlanilha";
-import { dataHL, hospedesHL, lerArquivoHotelLink, type ReservaHL } from "./hotellink";
+import { dataHL, hospedesHL, lerArquivoHotelLink, valorPlanilha, type ReservaHL } from "./hotellink";
 
 // Importação de reservas por planilha.
 // Aceita a PLANILHA MODELO do A Chegada (baixada no painel) e, por compatibilidade,
@@ -9,7 +9,7 @@ import { dataHL, hospedesHL, lerArquivoHotelLink, type ReservaHL } from "./hotel
 
 export const COLUNAS_MODELO = [
   "Código da reserva", "Nome do titular", "WhatsApp", "Check-in", "Check-out",
-  "Adultos", "Crianças", "Chalé ou quarto", "Canal", "Código no canal", "Situação",
+  "Adultos", "Crianças", "Chalé ou quarto", "Canal", "Código no canal", "Situação", "Valor total",
 ] as const;
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -84,6 +84,7 @@ function lerComIndices(linhas: unknown[][], inicio: number, i: Indices): { reser
       quarto: t(c, "quarto"),
       adultos: porTexto ? porTexto.adultos : numero(pessoas, 2) || 2,
       criancas: porTexto ? porTexto.criancas : numero(t(c, "criancas"), 0),
+      valorTotal: valorPlanilha(v(c, "valorTotal")),
     });
   });
   if (!reservas.length)
@@ -100,7 +101,7 @@ function lerModelo(linhas: unknown[][]) {
   const col = (nome: string) => cab.indexOf(norm(nome));
   const i: Indices = {
     referencia: col("Código da reserva"), titular: col("Nome do titular"), telefone: col("WhatsApp"), checkIn: col("Check-in"), checkOut: col("Check-out"),
-    adultos: col("Adultos"), criancas: col("Crianças"), quarto: col("Chalé ou quarto"), canal: col("Canal"), codCanal: col("Código no canal"), situacao: col("Situação"),
+    adultos: col("Adultos"), criancas: col("Crianças"), quarto: col("Chalé ou quarto"), canal: col("Canal"), codCanal: col("Código no canal"), situacao: col("Situação"), valorTotal: col("Valor total"),
   };
   if (i.checkIn! < 0 || i.checkOut! < 0) return null; // parecido, mas não é o modelo: segue para a ligação de colunas
   return lerComIndices(linhas, inicio, i);

@@ -72,6 +72,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     pre: Array.isArray(r.pre_chegadas) ? r.pre_chegadas[0] ?? null : (r.pre_chegadas as Reserva["pre_chegadas"] & object) ?? null,
   }));
   const atual = reservas.find((x) => x.id === selecionada);
+  // nº e valor da reserva do card aberto (só a equipe vê; migração 0011 traz o valor)
+  let extra: { referencia_externa?: string | null; valor_total?: number | null; valor_pago?: number | null } | null = null;
+  if (atual) {
+    const r1 = await db.from("reservas").select("referencia_externa, valor_total, valor_pago").eq("id", atual.id).maybeSingle();
+    extra = r1.error ? (await db.from("reservas").select("referencia_externa").eq("id", atual.id).maybeSingle()).data : r1.data;
+  }
+  const reais = (v: number | string | null | undefined) => (v == null ? null : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
 
   const h = await headers();
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;
@@ -96,6 +103,8 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <dl className="kv">
           <dt>Estadia</dt><dd>{dataCurta(atual.check_in)} a {dataCurta(atual.check_out)} · {noites(atual.check_in, atual.check_out)} noites</dd>
           <dt>Hóspedes</dt><dd>{atual.adultos} adultos{atual.criancas ? ` e ${atual.criancas} criança(s)` : ""}</dd>
+          {extra?.referencia_externa && !extra.referencia_externa.startsWith("PL-") && <><dt>Nº da reserva</dt><dd className="mono">{extra.referencia_externa}</dd></>}
+          {extra?.valor_total != null && <><dt>Valor</dt><dd>{reais(extra.valor_total)}{extra.valor_pago != null ? ` · pago ${reais(extra.valor_pago)}` : ""}</dd></>}
           <dt>WhatsApp</dt><dd><EditarWhatsApp reservaId={atual.id} telefone={atual.telefone} /></dd>
         </dl>
         <div className="field">

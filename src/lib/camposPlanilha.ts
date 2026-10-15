@@ -11,6 +11,7 @@ export const CAMPOS = [
   { id: "quarto", rotulo: "Chalé ou quarto", obrigatorio: false, sinonimos: ["Chalé ou quarto", "Chalé", "Quarto", "Acomodação", "Unidade", "Apartamento", "UH", "Room", "Habitación", "Tipo de quarto"] },
   { id: "canal", rotulo: "Canal / origem", obrigatorio: false, sinonimos: ["Canal", "Origem", "Source", "Channel", "OTA", "Agência", "Origen"] },
   { id: "codCanal", rotulo: "Código no canal (Booking, Airbnb…)", obrigatorio: false, sinonimos: ["Código no canal", "Código OTA", "Localizador OTA", "OTA reference", "Channel reference"] },
+  { id: "valorTotal", rotulo: "Valor total da reserva", obrigatorio: false, sinonimos: ["Valor total", "Valor da reserva", "Total da reserva", "Valor total da reserva", "Preço total", "Total Amount", "Total Price", "Grand Total", "Importe total", "Valor"] },
   { id: "situacao", rotulo: "Situação (confirmada/cancelada)", obrigatorio: false, sinonimos: ["Situação", "Status", "Estado"] },
 ] as const;
 export type Campo = (typeof CAMPOS)[number]["id"];

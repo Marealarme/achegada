@@ -10,6 +10,7 @@ export const maxDuration = 60;
 // Planilhas de hóspedes (só dono e gerência). Cor/raça e deficiência nunca ficam guardadas, então não aparecem.
 //  /painel/exportar?de=AAAA-MM-DD&ate=AAAA-MM-DD            → completa: aba "Estadias" (pessoa × estadia) + aba "Clientes" (uma linha por pessoa)
 //  /painel/exportar?tipo=marketing&de=…&ate=…              → só quem autorizou ofertas, só dados de contato (para agência/CRM)
+//  A planilha completa também traz a aba "Notas fiscais": uma linha por reserva (nº, valor, dados do titular).
 // O período filtra pela data de check-in.
 
 type Hospede = {
@@ -24,6 +25,7 @@ type Linha = {
   hospedes: Hospede | null;
   reservas: {
     titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
+    referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null;
     fnrh_status: string | null; fnrh_concluida: boolean; checkin_em: string | null; checkout_em: string | null; cancelada_em: string | null;
     unidades: { nome: string } | null; pre_chegadas: Pre[] | Pre | null;
   } | null;
@@ -60,6 +62,25 @@ function planilhaDe(dados: Record<string, unknown>[], vazio: string) {
   return ws;
 }
 
+const COLUNAS_DINHEIRO = ["Valor total", "Pago", "Pendente"];
+/** Formata as colunas de dinheiro como R$ (o número continua número, dá para somar no Excel). */
+function formatarDinheiro(ws: XLSX.WorkSheet) {
+  if (!ws["!ref"]) return ws;
+  const faixa = XLSX.utils.decode_range(ws["!ref"]);
+  for (let c = faixa.s.c; c <= faixa.e.c; c++) {
+    const cab = ws[XLSX.utils.encode_cell({ r: 0, c })]?.v;
+    if (!COLUNAS_DINHEIRO.includes(String(cab))) continue;
+    for (let r = 1; r <= faixa.e.r; r++) {
+      const cel = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cel && cel.t === "n") cel.z = '"R$" #,##0.00';
+    }
+  }
+  return ws;
+}
+/** Nº da reserva do sistema (as referências "PL-…" são internas, geradas quando a planilha não tinha código). */
+const numeroReserva = (ref: string | null | undefined) => (ref && !ref.startsWith("PL-") ? ref : "");
+const dinheiro = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "" : Number(v));
+
 function situacao(r: NonNullable<Linha["reservas"]>) {
   if (r.cancelada_em) return "Cancelada";
   if (r.checkout_em) return "Saiu";
@@ -80,9 +101,15 @@ export async function GET(req: Request) {
   const campos = (extra: string) =>
     `papel, hospedes(id, nome, cpf, passaporte, data_nascimento, telefone, email, genero, nacionalidade, pais_residencia, cep, logradouro, numero, complemento, bairro, cidade, uf, consentimento_marketing_em), reservas!inner(titular, telefone, check_in, check_out, origem, fnrh_status, fnrh_concluida, checkin_em, checkout_em${extra}, unidades(nome), pre_chegadas(created_at, horario_chegada, placa, pet_tem, pet_nome, pet_especie, motivo_viagem, meio_transporte))`;
   const linhas: Linha[] = [];
+  // tenta com as colunas mais novas primeiro (0011: valor; 0005: nº da reserva; 0007: cancelada)
+  const extras = [", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago", ", cancelada_em, referencia_externa, ota_referencia", ", cancelada_em", ""];
+  let nivel = 0;
   for (let de = 0; ; de += 1000) {
-    let resp = await db.from("hospedes_reserva").select(campos(", cancelada_em")).eq("pousada_id", s.pousada.id).range(de, de + 999);
-    if (resp.error) resp = await db.from("hospedes_reserva").select(campos("")).eq("pousada_id", s.pousada.id).range(de, de + 999); // antes da 0007
+    let resp = await db.from("hospedes_reserva").select(campos(extras[nivel])).eq("pousada_id", s.pousada.id).range(de, de + 999);
+    while (resp.error && nivel < extras.length - 1) {
+      nivel++;
+      resp = await db.from("hospedes_reserva").select(campos(extras[nivel])).eq("pousada_id", s.pousada.id).range(de, de + 999);
+    }
     if (resp.error) return new Response("Não foi possível gerar a planilha. Tente de novo.", { status: 500 });
     const pagina = (resp.data ?? []) as unknown as Linha[];
     linhas.push(...pagina);
@@ -136,6 +163,7 @@ export async function GET(req: Request) {
       const titular = l.papel === "titular";
       const endereco = [h.logradouro, h.numero, h.complemento].filter(Boolean).join(", ");
       return {
+        "Nº da reserva": numeroReserva(r.referencia_externa),
         "Check-in": dataBr(r.check_in),
         "Check-out": dataBr(r.check_out),
         "Noites": noites(r.check_in, r.check_out),
@@ -165,6 +193,8 @@ export async function GET(req: Request) {
         "Pet": titular ? (pre?.pet_tem ? [pre.pet_nome, pre.pet_especie].filter(Boolean).join(" · ") || "Sim" : "Não") : "",
         "Chegada prevista": titular ? pre?.horario_chegada?.slice(0, 5) ?? "" : "",
         "Canal da reserva": r.origem ?? "",
+        "Código no canal": r.ota_referencia ?? "",
+        "Valor total": titular ? dinheiro(r.valor_total) : "",
         "Check-in online feito em": dataHoraBr(pre?.created_at ?? null),
         "Chegada registrada na FNRH em": dataHoraBr(r.checkin_em),
         "Saída registrada na FNRH em": dataHoraBr(r.checkout_em),
@@ -185,7 +215,54 @@ export async function GET(req: Request) {
       "Último chalé": c.ultimoChale,
       "Aceita receber ofertas": c.h.consentimento_marketing_em ? "Sim" : "Não",
     }));
-    XLSX.utils.book_append_sheet(livro, planilhaDe(estadias, "Nenhum hóspede fez o check-in online neste período."), "Estadias");
+    // ---------- Notas fiscais: uma linha por reserva não cancelada, com ou sem check-in online ----------
+    type HospNF = { nome: string; cpf: string | null; passaporte: string | null; email: string | null; telefone: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; cidade: string | null; uf: string | null; pais_residencia: string | null };
+    type ResNF = {
+      titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
+      referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null;
+      unidades: { nome: string } | null; hospedes_reserva: { papel: string; hospedes: HospNF | null }[];
+    };
+    const camposNF = (extra: string) => `titular, telefone, check_in, check_out, origem${extra}, unidades(nome), hospedes_reserva(papel, hospedes(nome, cpf, passaporte, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, pais_residencia))`;
+    const reservasNF: ResNF[] = [];
+    for (const extra of [", referencia_externa, ota_referencia, valor_total, valor_pago", ", referencia_externa, ota_referencia", ""]) {
+      let q = db.from("reservas").select(camposNF(extra)).eq("pousada_id", s.pousada.id).is("cancelada_em", null).order("check_in").limit(5000);
+      if (de) q = q.gte("check_in", de);
+      if (ate) q = q.lte("check_in", ate);
+      const { data, error } = await q;
+      if (!error) { reservasNF.push(...((data ?? []) as unknown as ResNF[])); break; }
+    }
+    const notas = reservasNF.map((r) => {
+      const h = r.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes ?? null;
+      const total = r.valor_total == null ? null : Number(r.valor_total);
+      const pago = r.valor_pago == null ? null : Number(r.valor_pago);
+      return {
+        "Nº da reserva": numeroReserva(r.referencia_externa),
+        "Código no canal": r.ota_referencia ?? "",
+        "Canal": r.origem ?? "",
+        "Check-in": dataBr(r.check_in),
+        "Check-out": dataBr(r.check_out),
+        "Noites": noites(r.check_in, r.check_out),
+        "Chalé / quarto": r.unidades?.nome ?? "",
+        "Titular (tomador)": h?.nome ?? r.titular,
+        "CPF": h?.cpf ? cpfFormatar(h.cpf) : "",
+        "Passaporte": h?.passaporte ?? "",
+        "E-mail": h?.email ?? "",
+        "Telefone": telefoneBR(h?.telefone ?? r.telefone),
+        "CEP": h?.cep ?? "",
+        "Endereço": h ? [h.logradouro, h.numero, h.complemento].filter(Boolean).join(", ") : "",
+        "Bairro": h?.bairro ?? "",
+        "Cidade": h?.cidade ?? "",
+        "UF": h?.uf ?? "",
+        "País": h ? rotulo(PAISES, h.pais_residencia) : "",
+        "Valor total": dinheiro(total),
+        "Pago": dinheiro(pago),
+        "Pendente": total != null && pago != null ? Math.round((total - pago) * 100) / 100 : "",
+        "Check-in online": h ? "Sim" : "Não (sem CPF/endereço)",
+      };
+    });
+
+    XLSX.utils.book_append_sheet(livro, formatarDinheiro(planilhaDe(estadias, "Nenhum hóspede fez o check-in online neste período.")), "Estadias");
+    XLSX.utils.book_append_sheet(livro, formatarDinheiro(planilhaDe(notas, "Nenhuma reserva neste período.")), "Notas fiscais");
     XLSX.utils.book_append_sheet(livro, planilhaDe(dadosClientes, "Nenhum cliente neste período."), "Clientes");
     nomeArquivo = `hospedes-${s.pousada.slug}-${sufixo}.xlsx`;
   }
