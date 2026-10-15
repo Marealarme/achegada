@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     const lista = (Array.isArray(c) ? c : (c.itens ?? c.dados ?? c.data ?? c.items ?? c.notas ?? [])) as Record<string, unknown>[];
     for (const n of lista) if (String(n.numero ?? "") === numero || String(n.numero ?? "").replace(/^0+/, "") === numero) achadas.push(n);
     if (pag === 0 && !lista.length) return Response.json({ semNotas: true, corpo: c });
-    if (pag === 0) achadas.length || console.log(lista.map((n) => n.numero));
+    if (u.get("listar")) return Response.json(lista.map((n) => { const sv = (n.servico ?? {}) as Record<string, unknown>; return { chaves: Object.keys(n), id: n.id, numero: n.numero, numeroNfse: n.numeroNfse, status: n.status, idExterno: n.idExterno, nbs: sv.codigoNbs, ibscbs: sv.ibscbs, servicoChaves: Object.keys(sv) }; }));
     cursor = String(c.cursor ?? c.proximoCursor ?? "");
     if (achadas.length || !cursor) break;
   }
