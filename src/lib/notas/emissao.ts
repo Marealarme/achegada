@@ -35,6 +35,7 @@ export async function aplicarRetorno(db: SupabaseClient, notaId: string, dto: Re
   const msg = cancelamentoRecusado
     ? `Cancelamento recusado: ${String(canc.mensagemRejeicao ?? dto.mensagem ?? "sem motivo informado")}`
     : status === "rejeitada" ? String(dto.mensagemRejeicao ?? dto.mensagem ?? "Rejeitada pela prefeitura")
+    : status === "processando" && dto.status ? `Situação na Digisan: ${String(dto.status)}`
     : null;
   await db.from("notas_fiscais").update({
     status,
@@ -87,6 +88,7 @@ export async function atualizarNota(db: SupabaseClient, cfg: NfseConfig | null, 
   if (n.digisan_id) {
     const r = await consultarNfse(n.digisan_id);
     if (r.ok && r.corpo) await aplicarRetorno(db, n.id, r.corpo);
+    else await db.from("notas_fiscais").update({ mensagem: `Consulta à Digisan falhou: ${mensagemErro(r)}`, atualizada_em: new Date().toISOString() }).eq("id", n.id);
     return;
   }
   if (!cfg) return;
