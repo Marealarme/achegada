@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cadastrarWebhook, cancelarNfse, digisanLigada, mensagemErro, type NfseConfig } from "@/lib/notas/digisan";
-import { atualizarNota, emitirReserva, notasNoMes, type Nota } from "@/lib/notas/emissao";
+import { atualizarNota, emitirReserva, notasNoPeriodo, type Nota } from "@/lib/notas/emissao";
 import { linhasNotas } from "@/lib/notas/linhas";
 
 const LOTE_MAX = 25;
@@ -34,10 +34,9 @@ export async function emitirNotas(reservaIds: string[]): Promise<ResultadoEmissa
       return { ok: false, mensagens: ["Fase de teste: só uma nota pode ser emitida até a primeira ser conferida e a emissão ser liberada."] };
   }
 
-  const mes = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 7);
   const limite = cfg.limiteMensal ?? 160;
-  const usadas = await notasNoMes(db, s.pousada.id, mes);
-  if (usadas + ids.length > limite) return { ok: false, mensagens: [`Limite do plano: ${usadas} de ${limite} notas já emitidas este mês.`] };
+  const usadas = await notasNoPeriodo(db, s.pousada.id, cfg.cicloDia);
+  if (usadas + ids.length > limite) return { ok: false, mensagens: [`Limite do plano: ${usadas} de ${limite} notas já emitidas neste período.`] };
 
   const linhas = await linhasNotas(db, s.pousada.id, null, null, ids);
   const mensagens: string[] = [];

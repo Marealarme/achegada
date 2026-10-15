@@ -8,12 +8,22 @@ export type Nota = {
   numero: string | null; mensagem: string | null; competencia: string | null; criada_em: string;
 };
 
-/** Quantas notas a pousada já mandou para a Digisan no mês (rejeitadas na validação não contam). */
-export async function notasNoMes(db: SupabaseClient, pousadaId: string, mes: string): Promise<number> {
-  const ini = `${mes}-01T03:00:00Z`;
-  const prox = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 1, 3)).toISOString();
+/** Período do plano da Digisan: do dia `cicloDia` de um mês ao mesmo dia do mês seguinte (sem ciclo = mês corrente). */
+export function periodoPlano(cicloDia?: number): { ini: string; fim: string; rotulo: string } {
+  const hoje = new Date(Date.now() - 3 * 3600e3);
+  const a = hoje.getUTCFullYear(), m = hoje.getUTCMonth(), d = hoje.getUTCDate();
+  const dia = cicloDia && cicloDia >= 1 && cicloDia <= 28 ? cicloDia : 1;
+  const iniMes = d >= dia ? m : m - 1;
+  const ini = new Date(Date.UTC(a, iniMes, dia)), fim = new Date(Date.UTC(a, iniMes + 1, dia));
+  const br = (x: Date) => `${String(x.getUTCDate()).padStart(2, "0")}/${String(x.getUTCMonth() + 1).padStart(2, "0")}`;
+  return { ini: ini.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10), rotulo: `${br(ini)} a ${br(fim)}` };
+}
+
+/** Quantas notas a pousada já mandou para a Digisan no período do plano (rejeitadas na validação não contam). */
+export async function notasNoPeriodo(db: SupabaseClient, pousadaId: string, cicloDia?: number): Promise<number> {
+  const p = periodoPlano(cicloDia);
   const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true })
-    .eq("pousada_id", pousadaId).not("digisan_id", "is", null).gte("criada_em", ini).lt("criada_em", prox);
+    .eq("pousada_id", pousadaId).not("digisan_id", "is", null).gte("criada_em", `${p.ini}T03:00:00Z`).lt("criada_em", `${p.fim}T03:00:00Z`);
   return count ?? 0;
 }
 

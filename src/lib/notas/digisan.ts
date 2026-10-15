@@ -23,6 +23,7 @@ export type NfseConfig = {
   naturezaTributacao?: number;
   enviarPorEmail?: boolean;
   limiteMensal?: number;                 // plano da Digisan (padrão 160)
+  cicloDia?: number;                     // dia em que o período do plano vira (ex.: 6 = de 06 a 06)
   prefixoDescricao?: string;             // começo do texto da nota (padrão "Hospedagem"); muda junto com o serviço
   servico: Record<string, unknown>;      // copiado tal como está em Cadastros > Serviços (código, alíquota, CNAE, NBS…)
 };
