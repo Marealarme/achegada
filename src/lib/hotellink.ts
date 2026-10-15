@@ -16,6 +16,7 @@ export type ReservaHL = {
   criancas: number;
   valorTotal?: number | null; // valor total da reserva (para a nota fiscal; o hóspede não vê)
   valorPago?: number | null;
+  email?: string;   // e-mail do hóspede na reserva (usado só para ligar a ficha à reserva)
 };
 
 const MESES: Record<string, string> = {
@@ -136,6 +137,7 @@ function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } 
     pessoas: col("Número Total de Hóspedes", "Total Number of Guests", "Total Guests", "Número total de huéspedes", "Guests", "Huéspedes"),
     valor: col("Valor Total", "Total Amount", "Total Price", "Grand Total", "Importe Total", "Precio Total", "Monto Total"),
     pago: col("Pago", "Paid", "Amount Paid", "Pagado", "Valor Pago"),
+    email: col("Email do Hóspede", "E-mail do Hóspede", "Guest Email", "Email del huésped", "Correo del huésped", "Email"),
   };
   if (i.ref < 0 || i.hospede < 0 || i.entrada < 0 || i.saida < 0)
     return { reservas: [], erro: "Não encontrei as colunas de referência, hóspede e datas. Use a planilha modelo do painel." };
@@ -160,6 +162,7 @@ function lerTabela(todas: string[][]): { reservas: ReservaHL[]; erro?: string } 
       ...hospedesHL(c[i.pessoas] ?? ""),
       valorTotal: i.valor >= 0 ? valorPlanilha(c[i.valor]) : null,
       valorPago: i.pago >= 0 ? valorPlanilha(c[i.pago]) : null,
+      email: i.email >= 0 ? limpo(c[i.email]) : "",
     });
   }
   if (!reservas.length) return { reservas, erro: "Não encontrei nenhuma reserva neste arquivo." };

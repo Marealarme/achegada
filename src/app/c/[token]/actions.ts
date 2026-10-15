@@ -6,6 +6,7 @@ import { cpfValido, somenteDigitos } from "@/lib/util";
 import { DEFICIENCIA, GENEROS, ids, MEIOS_TRANSPORTE, MOTIVOS_VIAGEM, RACAS, TIPOS_DEFICIENCIA } from "@/lib/fnrh/dominios";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { montarPayload, processarEnvio, type PessoaFicha } from "@/lib/fnrh/envio";
+import { vincularAposCheckin } from "@/lib/vinculo";
 import type { Endereco, Pessoa } from "./CheckinFlow";
 
 export type CheckinEntrada = {
@@ -153,6 +154,9 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
     ({ error: errPre } = await db.from("pre_chegadas").insert(semViagem));
   }
   if (errPre) return { ok: false, erro: ERRO_SALVAR };
+
+  // card criado à mão (sem nº de reserva): tenta ligar sozinho à reserva importada da mesma data
+  await vincularAposCheckin(db, reserva.pousada_id, reserva.id);
 
   // ---------- 4. ficha no governo (só se a integração estiver ligada) ----------
   if (!(await fnrhLigada(reserva.pousada_id))) return { ok: true, fichaEnviada: false };

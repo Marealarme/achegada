@@ -11,7 +11,7 @@ export const maxDuration = 60;
 //  /painel/exportar?de=AAAA-MM-DD&ate=AAAA-MM-DD            → completa: aba "Estadias" (pessoa × estadia) + aba "Clientes" (uma linha por pessoa)
 //  /painel/exportar?tipo=marketing&de=…&ate=…              → só quem autorizou ofertas, só dados de contato (para agência/CRM)
 //  A planilha completa também traz a aba "Notas fiscais": uma linha por reserva (nº, valor, dados do titular).
-// O período filtra pela data de check-in.
+// O período filtra pela data de check-in (abas Estadias e Clientes) e pela data de CHECK-OUT (aba Notas fiscais).
 
 type Hospede = {
   id: string; nome: string; cpf: string | null; passaporte: string | null; data_nascimento: string | null; telefone: string | null;
@@ -25,7 +25,7 @@ type Linha = {
   hospedes: Hospede | null;
   reservas: {
     titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
-    referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null;
+    referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null; descartada_em?: string | null;
     fnrh_status: string | null; fnrh_concluida: boolean; checkin_em: string | null; checkout_em: string | null; cancelada_em: string | null;
     unidades: { nome: string } | null; pre_chegadas: Pre[] | Pre | null;
   } | null;
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
     `papel, hospedes(id, nome, cpf, passaporte, data_nascimento, telefone, email, genero, nacionalidade, pais_residencia, cep, logradouro, numero, complemento, bairro, cidade, uf, consentimento_marketing_em), reservas!inner(titular, telefone, check_in, check_out, origem, fnrh_status, fnrh_concluida, checkin_em, checkout_em${extra}, unidades(nome), pre_chegadas(created_at, horario_chegada, placa, pet_tem, pet_nome, pet_especie, motivo_viagem, meio_transporte))`;
   const linhas: Linha[] = [];
   // tenta com as colunas mais novas primeiro (0011: valor; 0005: nº da reserva; 0007: cancelada)
-  const extras = [", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago", ", cancelada_em, referencia_externa, ota_referencia", ", cancelada_em", ""];
+  const extras = [", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago, descartada_em", ", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago", ", cancelada_em, referencia_externa, ota_referencia", ", cancelada_em", ""];
   let nivel = 0;
   for (let de = 0; ; de += 1000) {
     let resp = await db.from("hospedes_reserva").select(campos(extras[nivel])).eq("pousada_id", s.pousada.id).range(de, de + 999);
@@ -116,7 +116,7 @@ export async function GET(req: Request) {
     if (pagina.length < 1000) break;
   }
 
-  const validas = linhas.filter((l) => l.hospedes && l.reservas);
+  const validas = linhas.filter((l) => l.hospedes && l.reservas && !l.reservas.descartada_em); // fichas de teste ficam de fora
   const noPeriodo = (r: NonNullable<Linha["reservas"]>) => (!de || r.check_in >= de) && (!ate || r.check_in <= ate);
 
   // ---------- Clientes: uma linha por pessoa, com o histórico de TODAS as estadias (não canceladas) ----------
@@ -224,16 +224,24 @@ export async function GET(req: Request) {
     };
     const camposNF = (extra: string) => `titular, telefone, check_in, check_out, origem${extra}, unidades(nome), hospedes_reserva(papel, hospedes(nome, cpf, passaporte, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, pais_residencia))`;
     const reservasNF: ResNF[] = [];
-    for (const extra of [", referencia_externa, ota_referencia, valor_total, valor_pago", ", referencia_externa, ota_referencia", ""]) {
-      let q = db.from("reservas").select(camposNF(extra)).eq("pousada_id", s.pousada.id).is("cancelada_em", null).order("check_in").limit(5000);
-      if (de) q = q.gte("check_in", de);
-      if (ate) q = q.lte("check_in", ate);
+    // notas do mês: reservas com CHECK-OUT no período escolhido, sem canceladas e sem fichas de teste
+    for (const [extra, semTeste] of [[", referencia_externa, ota_referencia, valor_total, valor_pago", true], [", referencia_externa, ota_referencia, valor_total, valor_pago", false], [", referencia_externa, ota_referencia", false], ["", false]] as const) {
+      let q = db.from("reservas").select(camposNF(extra)).eq("pousada_id", s.pousada.id).is("cancelada_em", null).order("check_out").limit(5000);
+      if (semTeste) q = q.is("descartada_em", null);
+      if (de) q = q.gte("check_out", de);
+      if (ate) q = q.lte("check_out", ate);
       const { data, error } = await q;
       if (!error) { reservasNF.push(...((data ?? []) as unknown as ResNF[])); break; }
     }
     const notas = reservasNF.map((r) => {
       const h = r.hospedes_reserva.find((x) => x.papel === "titular")?.hospedes ?? null;
       const total = r.valor_total == null ? null : Number(r.valor_total);
+      const estrangeiro = !!h?.pais_residencia && h.pais_residencia !== "BR";
+      const pendencias = [
+        !numeroReserva(r.referencia_externa) ? "sem reserva" : "",
+        !h || (!h.cpf && !h.passaporte) ? "sem CPF" : "",
+        !h || (!estrangeiro && (!h.cep || !h.logradouro)) ? "sem endereço" : "",
+      ].filter(Boolean);
       const pago = r.valor_pago == null ? null : Number(r.valor_pago);
       return {
         "Nº da reserva": numeroReserva(r.referencia_externa),
@@ -257,7 +265,8 @@ export async function GET(req: Request) {
         "Valor total": dinheiro(total),
         "Pago": dinheiro(pago),
         "Pendente": total != null && pago != null ? Math.round((total - pago) * 100) / 100 : "",
-        "Check-in online": h ? "Sim" : "Não (sem CPF/endereço)",
+        "Pendência": pendencias.length ? pendencias.join(" / ") : "OK",
+        "Check-in online": h ? "Sim" : "Não",
       };
     });
 

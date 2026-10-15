@@ -3,11 +3,11 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import Cabecalho from "./Cabecalho";
-import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData } from "@/lib/util";
+import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData, primeiroNome } from "@/lib/util";
 import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
-import { BaixarHospedes, BotoesMensagem, EditarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
+import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +34,14 @@ function status(r: { fnrh_concluida: boolean; pre: unknown; link_enviado_em?: st
   return { cls: "link", txt: "Link a enviar" };
 }
 
+/** Etapa da reserva na lista: ficha não enviada / ficha enviada / hospedado. */
+function etapa(r: { pre: unknown; checkin_em?: string | null; checkout_em?: string | null }) {
+  if (r.checkout_em) return { cls: "ok", txt: "Saiu" };
+  if (r.checkin_em) return { cls: "ok", txt: "Hospedado" };
+  if (r.pre) return { cls: "pre", txt: "Ficha enviada" };
+  return { cls: "link", txt: "Ficha não enviada" };
+}
+
 function quando(iso: string) {
   const d = new Date(Date.parse(iso) - 3 * 3600e3); // horário de Brasília
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1} às ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
@@ -50,7 +58,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // horário de Brasília
   const buscar = (campos: string, semCanceladas = false) => {
     const q = db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
-    return semCanceladas ? q.is("cancelada_em", null) : q;
+    return semCanceladas ? q.is("cancelada_em", null).is("descartada_em", null) : q;
   };
   const COMPLETO = `${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
   const [comFiltro, { data: unidades }] = await Promise.all([
@@ -65,7 +73,11 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const segunda = await buscar(`${CAMPOS}, link_enviado_em`);
     lista = segunda.error ? (await buscar(CAMPOS)).data : segunda.data;
   }
-  const [integracao, porEmail] = await Promise.all([fnrhLigada(sessao.pousada.id), enderecoImportacao(sessao.pousada.id)]);
+  const desde120 = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+  const [integracao, porEmail, semReserva] = await Promise.all([
+    fnrhLigada(sessao.pousada.id), enderecoImportacao(sessao.pousada.id),
+    db.from("reservas").select("id", { count: "exact", head: true }).is("referencia_externa", null).is("cancelada_em", null).is("descartada_em", null).gte("check_out", desde120),
+  ]);
 
   const reservas = ((lista ?? []) as unknown as Reserva[]).map((r) => ({
     ...r,
@@ -191,6 +203,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <div className="kpi"><span className="label">Fichas FNRH prontas</span><strong>{prontas} de {reservas.length}</strong></div>
       </section>
 
+      {(semReserva.count ?? 0) > 0 && (
+        <p className="aviso">{semReserva.count} ficha(s) sem número de reserva do sistema. <Link href="/painel/sem-reserva">Ligar às reservas</Link></p>
+      )}
       {!integracao && podeConfigurar(sessao) && (
         <p className="aviso">A ficha do governo (FNRH) ainda não está ligada: hoje o hóspede é levado ao site do governo para preencher. <a href="/painel/config">Ligar a FNRH em 5 minutos</a></p>
       )}
@@ -202,7 +217,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           ) : (
             <div className="list">
               {reservas.map((x) => {
-                const st = status(x);
+                const st = etapa(x);
+                const erroFicha = x.fnrh_status === "erro" || x.fnrh_status === "enviando";
+                const curta = `Olá, ${primeiroNome(x.titular)}! Para agilizar sua chegada na ${pousadaNome}, faça seu check-in online aqui: ${base}/c/${x.token}`;
                 const dt = partesData(x.check_in);
                 const aberta = atual?.id === x.id;
                 return (
@@ -210,8 +227,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                     <Link href={aberta ? "/painel" : `/painel?r=${x.id}#r-${x.id}`} className="row" aria-current={aberta} aria-expanded={aberta}>
                       <span className="date"><b>{dt.dia}</b><span>{dt.mes}</span></span>
                       <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
-                      <span className={`pill ${st.cls}`}>{st.txt}</span>
+                      <span className={`pill ${st.cls}`}>{st.txt}{erroFicha ? " · erro FNRH" : ""}</span>
                     </Link>
+                    {!x.pre && !aberta && <div className="item-acoes"><CopiarMensagemCurta reservaId={x.id} texto={curta} /></div>}
                     {aberta && detalhe(x)}
                   </div>
                 );

@@ -93,6 +93,20 @@ export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTel
   );
 }
 
+/** Botão da lista: copia a mensagem curta com o link de check-in daquele hóspede. */
+export function CopiarMensagemCurta({ reservaId, texto }: { reservaId: string; texto: string }) {
+  const [copiado, setCopiado] = useState(false);
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(true);
+      marcarLinkEnviado(reservaId).catch(() => {});
+      setTimeout(() => setCopiado(false), 2000);
+    } catch { setCopiado(false); }
+  }
+  return <button className="btn mini" type="button" onClick={copiar}>{copiado ? "Copiada ✓" : "Copiar mensagem WhatsApp"}</button>;
+}
+
 /** WhatsApp do card com botão para corrigir (número errado ou faltando na planilha). */
 export function EditarWhatsApp({ reservaId, telefone }: { reservaId: string; telefone: string | null }) {
   const [editando, setEditando] = useState(false);

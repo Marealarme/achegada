@@ -9,15 +9,16 @@ export const dynamic = "force-dynamic";
 type Hospede = { nome: string | null; cpf: string | null; cidade: string | null; uf: string | null };
 type Estadia = {
   id: string; titular: string; check_in: string; check_out: string; adultos: number; criancas: number; origem: string | null;
-  cancelada_em: string | null; checkin_em: string | null; checkout_em: string | null; fnrh_status: string | null;
+  cancelada_em: string | null; descartada_em?: string | null; checkin_em: string | null; checkout_em: string | null; fnrh_status: string | null;
   unidades: { nome: string } | null;
   hospedes_reserva: { papel: string; hospedes: Hospede | null }[];
 };
 
-const CAMPOS = "id, titular, check_in, check_out, adultos, criancas, origem, cancelada_em, checkin_em, checkout_em, fnrh_status, unidades(nome), hospedes_reserva(papel, hospedes(nome, cpf, cidade, uf))";
+const CAMPOS = "id, titular, check_in, check_out, adultos, criancas, origem, cancelada_em, descartada_em, checkin_em, checkout_em, fnrh_status, unidades(nome), hospedes_reserva(papel, hospedes(nome, cpf, cidade, uf))";
 const ano = (iso: string) => iso.slice(0, 4);
 
 function situacao(r: Estadia): { txt: string; cls: string } {
+  if (r.descartada_em) return { txt: "Teste", cls: "link" };
   if (r.cancelada_em) return { txt: "Cancelada", cls: "bad" };
   if (r.checkout_em) return { txt: "Saiu", cls: "ok" };
   if (r.checkin_em) return { txt: "Chegou", cls: "ok" };

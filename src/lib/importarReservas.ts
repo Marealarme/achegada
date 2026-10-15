@@ -5,6 +5,7 @@ import { supabaseServico } from "@/lib/supabase";
 import { ehOta } from "@/lib/hotellink";
 import { lerPlanilhaReservas, type Indices, type MapaSalvo, type PedidoMapeamento } from "@/lib/importacao";
 import { cancelarReserva, ErroFnrh } from "@/lib/fnrh/cliente";
+import { paresUnicos, pessoaDoCard } from "@/lib/vinculo";
 
 export type ResultadoImportacao = { ok: boolean; mensagem: string; detalhes?: string[]; mapear?: PedidoMapeamento; ligacaoSalva?: boolean };
 
@@ -67,7 +68,26 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
     return v;
   };
 
-  let criadas = 0, atualizadas = 0, canceladas = 0, valoresPassados = 0;
+  let criadas = 0, atualizadas = 0, canceladas = 0, valoresPassados = 0, vinculadas = 0;
+
+  // vínculo automático: reserva nova da planilha × card criado à mão (sem nº) com a mesma data de check-in.
+  // Só liga quando o casamento é único dos dois lados (nome compatível, telefone ou e-mail); senão vira card novo.
+  const statusValido = (s: string) => /confirm|check.?in|hospedad|in.?house|checked.?in/i.test(s) && !/check.?out/i.test(s);
+  const novas = reservas.filter((r) => !porRef.has(r.referencia) && statusValido(r.status) && r.checkOut >= hoje && r.checkOut > r.checkIn);
+  const fichaDaReserva = new Map<string, { id: string; unidade_id: string | null; telefone: string | null }>();
+  if (novas.length) {
+    const dias = [...new Set(novas.map((r) => r.checkIn))];
+    const { data: soltas, error: semVinculo } = await db.from("reservas")
+      .select("id, titular, telefone, check_in, unidade_id, hospedes_reserva(papel, hospedes(nome, telefone, email))")
+      .eq("pousada_id", pousadaId).is("referencia_externa", null).is("cancelada_em", null).is("descartada_em", null).in("check_in", dias);
+    if (!semVinculo && soltas?.length) {
+      type Solta = { id: string; titular: string; telefone: string | null; check_in: string; unidade_id: string | null; hospedes_reserva: { papel: string; hospedes: { nome: string | null; telefone: string | null; email: string | null } | null }[] };
+      const fichas = (soltas as unknown as Solta[]).map((c) => ({ id: c.id, dia: c.check_in, p: pessoaDoCard(c), card: c }));
+      const daPlanilha = novas.map((r) => ({ id: r.referencia, dia: r.checkIn, p: { nomes: [r.titular], telefones: [r.telefone], emails: [r.email] } }));
+      for (const par of paresUnicos(fichas, daPlanilha))
+        fichaDaReserva.set(par.reserva.id, { id: par.ficha.card.id, unidade_id: par.ficha.card.unidade_id, telefone: par.ficha.card.telefone });
+    }
+  }
   const ignoradas: string[] = [...(avisos ?? [])];
   for (const r of reservas) {
     const quem = r.titular || r.referencia;
@@ -87,7 +107,7 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
       continue;
     }
     // confirmada ou já hospedada no sistema (status "Check-in"/"Hospedado"): entra no painel — quem já chegou também precisa da ficha
-    const valida = /confirm|check.?in|hospedad|in.?house|checked.?in/i.test(r.status) && !/check.?out/i.test(r.status);
+    const valida = statusValido(r.status);
     if (r.checkOut < hoje || !valida) {
       // estadia que já terminou (no sistema fica "Check-out") ou fora do fluxo: não cria nem muda card,
       // só completa o valor de quem já está no painel (relatório de notas fiscais)
@@ -124,6 +144,14 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
       const { telefone, ...resto } = dados;
       const { error } = await db.from("reservas").update(foneCard.length >= 10 ? resto : { ...resto, telefone }).eq("id", atual.id);
       if (error) ignoradas.push(`${quem}: não foi possível atualizar`); else atualizadas++;
+    } else if (fichaDaReserva.has(r.referencia)) {
+      // card criado à mão para este hóspede: recebe nº, canal e valor (datas e nome digitados pela equipe ficam)
+      const f = fichaDaReserva.get(r.referencia)!;
+      const { error } = await db.from("reservas").update({
+        referencia_externa: r.referencia, ota_referencia: dados.ota_referencia, origem: dados.origem, ...valores(r),
+        unidade_id: f.unidade_id ?? dados.unidade_id, telefone: f.telefone ?? dados.telefone, vinculada_em: new Date().toISOString(),
+      }).eq("id", f.id);
+      if (error) ignoradas.push(`${quem}: não foi possível ligar ao card já existente`); else vinculadas++;
     } else {
       const { error } = await db.from("reservas").insert({
         ...dados, pousada_id: pousadaId, referencia_externa: r.referencia, token: randomBytes(12).toString("hex"), criado_por: autorId,
@@ -135,6 +163,7 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
   revalidatePath("/painel");
   const partes = [`${criadas} nova(s)`, `${atualizadas} atualizada(s)`];
   if (canceladas) partes.push(`${canceladas} cancelada(s) na planilha`);
+  if (vinculadas) partes.push(`${vinculadas} ligada(s) a card já existente`);
   if (valoresPassados) partes.push(`valor completado em ${valoresPassados} estadia(s) que já terminaram`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
   const aviso = leitura.mapaNovo && semMapas ? " (ligação de colunas não ficou salva: rode a migração 0008 no Supabase)" : "";
