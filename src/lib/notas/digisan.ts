@@ -102,6 +102,8 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
 }
 
 export const emitirNfse = (corpo: Record<string, unknown>) => chamar("/nfse", { method: "POST", body: JSON.stringify(corpo) });
+/** Lista notas na Digisan (só leitura; usado para conferir como uma nota já autorizada foi montada). */
+export const listarNfse = (query: string) => chamar(`/nfse?${query}`);
 export const consultarNfse = (id: string) => chamar(`/nfse/${encodeURIComponent(id)}`);
 export const cancelarNfse = (id: string, codigo: number, motivo: string) =>
   chamar(`/nfse/${encodeURIComponent(id)}/cancelar`, { method: "POST", body: JSON.stringify({ codigo, motivo }) });
