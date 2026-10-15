@@ -10,3 +10,7 @@ export const ROTULO_STATUS: Record<string, string> = {
 };
 /** Estes status contam como "já tem nota": não pode emitir de novo. */
 export const ATIVOS = ["enviando", "processando", "verificar", "autorizada", "cancelando"];
+
+/** Pacote do mês para a contabilidade: notas que entram e quantos PDFs por arquivo .zip. */
+export const STATUS_PACOTE = ["autorizada", "cancelando", "cancelada"];
+export const PDFS_POR_PARTE = 40;

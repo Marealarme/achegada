@@ -6,6 +6,7 @@ import { supabaseServico } from "@/lib/supabase";
 import { digisanLigada, type NfseConfig } from "@/lib/notas/digisan";
 import { notasNoPeriodo, periodoPlano } from "@/lib/notas/emissao";
 import { linhasNotas } from "@/lib/notas/linhas";
+import { PDFS_POR_PARTE, STATUS_PACOTE } from "@/lib/notas/status";
 import Cabecalho from "../Cabecalho";
 import TabelaNotas, { type LinhaTela } from "./TabelaNotas";
 import { ativarAvisos } from "./actions";
@@ -44,7 +45,12 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
     reservaId: l.reservaId, numeroReserva: l.numeroReserva, titular: l.titular, checkIn: l.checkIn, checkOut: l.checkOut,
     chale: l.chale, canal: l.canal, total: l.total, pendencias: l.pendencias, nota: ultima.get(l.reservaId) ?? null,
   }));
-  const emitidasMes = await notasNoPeriodo(db, s.pousada.id, cfg?.cicloDia);
+  const [emitidasMes, { count: noPacote }] = await Promise.all([
+    notasNoPeriodo(db, s.pousada.id, cfg?.cicloDia),
+    db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id)
+      .in("status", STATUS_PACOTE).gte("competencia", `${mes}-01`).lte("competencia", ultimoDia),
+  ]);
+  const partes = Math.ceil((noPacote ?? 0) / PDFS_POR_PARTE);
   const periodo = periodoPlano(cfg?.cicloDia);
   const configurada = digisanLigada() && !!cfg?.prestadorCnpj && !!cfg?.servico && !semTabela;
   const limite = cfg?.limiteMensal ?? 160;
@@ -82,6 +88,20 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
           )}
           {configurada && !cfg?.liberada && (
             <p className="aviso">Fase de teste: emita <b>uma</b> nota e confira o PDF. A emissão das demais é liberada depois da conferência.</p>
+          )}
+
+          {(noPacote ?? 0) > 0 && (
+            <div className="nf-pacote">
+              <div>
+                <b>Pacote para a contabilidade</b> · {noPacote} nota(s) de {MESES[m - 1]}
+                <div className="muted small">Arquivo .zip com a planilha do mês (resumo, notas, reservas sem nota) e os PDFs. O XML completo fica no portal da prefeitura.</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {partes <= 1
+                  ? <a className="btn" href={`/painel/notas/pacote?mes=${mes}`}>Baixar pacote do mês</a>
+                  : Array.from({ length: partes }, (_, i) => <a key={i} className="btn" href={`/painel/notas/pacote?mes=${mes}&parte=${i + 1}`}>Baixar parte {i + 1} de {partes}</a>)}
+              </div>
+            </div>
           )}
 
           <TabelaNotas linhas={tela} podeEmitir={configurada && emitidasMes < limite} faseTeste={!cfg?.liberada} />
