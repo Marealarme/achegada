@@ -1,5 +1,7 @@
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
+import { supabaseServico } from "@/lib/supabase";
 import { baixarArquivo } from "@/lib/notas/digisan";
+import { chaveDigisan } from "@/lib/notas/chave";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +14,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { data: n } = await s.db.from("notas_fiscais").select("digisan_id, numero, id_externo, status").eq("id", id).maybeSingle();
   if (!n?.digisan_id || !["autorizada", "cancelada", "cancelando"].includes(n.status))
     return new Response("Arquivo disponível só para nota autorizada ou cancelada.", { status: 404 });
-  const r = await baixarArquivo(n.digisan_id, arquivo);
+  const chave = (await chaveDigisan(supabaseServico(), s.pousada.id))?.chave ?? null;
+  const r = await baixarArquivo(chave, n.digisan_id, arquivo);
   if (!r) return new Response("A Digisan não devolveu o arquivo agora. Tente de novo em instantes.", { status: 502 });
   const nome = `nfse-${n.numero ?? n.id_externo}.${arquivo}`;
   return new Response(r.body, {

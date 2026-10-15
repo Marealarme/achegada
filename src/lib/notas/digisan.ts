@@ -3,16 +3,13 @@ import { createHmac } from "node:crypto";
 import type { LinhaNota } from "./linhas";
 
 // Cliente da API de NFS-e da Digisan. Roda SÓ no servidor.
-// A chave vem da variável de ambiente DIGISAN_API_KEY (nunca do código, do banco ou do navegador).
-// Não existe homologação para NFS-e na Digisan: toda chamada de emissão gera uma nota REAL.
+// Cada pousada usa a PRÓPRIA chave da Digisan (guardada criptografada em pousada_segredos; ver ./chave.ts).
+// A chave nunca vai ao navegador nem ao código. Não existe homologação para NFS-e na Digisan: toda emissão gera nota REAL.
 
 const BASE = "https://api.digisan.com.br/api/v1";
 
-export const digisanLigada = () => !!process.env.DIGISAN_API_KEY;
-
-/** Segredo que a Digisan devolve no header Authorization de cada aviso (webhook). Derivado da chave: não precisa de outra variável. */
-export function segredoWebhook(): string {
-  const chave = process.env.DIGISAN_API_KEY ?? "";
+/** Segredo que a Digisan devolve no header Authorization de cada aviso (webhook). Derivado da chave da pousada. */
+export function segredoWebhook(chave: string): string {
   return createHmac("sha256", chave).update("achegada-webhook-nfse").digest("hex");
 }
 
@@ -31,9 +28,8 @@ export type NfseConfig = {
 
 export type RespostaDigisan = { ok: boolean; status: number; corpo: Record<string, unknown> | null; erro?: string };
 
-async function chamar(caminho: string, init: RequestInit = {}): Promise<RespostaDigisan> {
-  const chave = process.env.DIGISAN_API_KEY;
-  if (!chave) return { ok: false, status: 0, corpo: null, erro: "A chave da Digisan ainda não foi cadastrada no servidor." };
+async function chamar(chave: string | null, caminho: string, init: RequestInit = {}): Promise<RespostaDigisan> {
+  if (!chave) return { ok: false, status: 0, corpo: null, erro: "A chave da Digisan desta pousada ainda não foi cadastrada." };
   try {
     const r = await fetch(`${BASE}${caminho}`, {
       ...init,
@@ -101,15 +97,15 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
   };
 }
 
-export const emitirNfse = (corpo: Record<string, unknown>) => chamar("/nfse", { method: "POST", body: JSON.stringify(corpo) });
+export const emitirNfse = (chave: string, corpo: Record<string, unknown>) => chamar(chave, "/nfse", { method: "POST", body: JSON.stringify(corpo) });
 /** Lista notas na Digisan (só leitura; usado para conferir como uma nota já autorizada foi montada). */
-export const listarNfse = (query: string) => chamar(`/nfse?${query}`);
-export const consultarNfse = (id: string) => chamar(`/nfse/${encodeURIComponent(id)}`);
-export const cancelarNfse = (id: string, codigo: number, motivo: string) =>
-  chamar(`/nfse/${encodeURIComponent(id)}/cancelar`, { method: "POST", body: JSON.stringify({ codigo, motivo }) });
+export const listarNfse = (chave: string, query: string) => chamar(chave, `/nfse?${query}`);
+export const consultarNfse = (chave: string, id: string) => chamar(chave, `/nfse/${encodeURIComponent(id)}`);
+export const cancelarNfse = (chave: string, id: string, codigo: number, motivo: string) =>
+  chamar(chave, `/nfse/${encodeURIComponent(id)}/cancelar`, { method: "POST", body: JSON.stringify({ codigo, motivo }) });
 
 /** Procura na Digisan uma nota já criada para o idExterno (usado quando a resposta da emissão se perdeu). */
-export async function procurarPorIdExterno(cnpj: string, idExterno: string, competencia: string): Promise<Record<string, unknown> | null> {
+export async function procurarPorIdExterno(chave: string, cnpj: string, idExterno: string, competencia: string): Promise<Record<string, unknown> | null> {
   const mes = competencia.slice(0, 7);
   const fim = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).toISOString().slice(0, 10);
   let cursor = "";
@@ -117,7 +113,7 @@ export async function procurarPorIdExterno(cnpj: string, idExterno: string, comp
     const q = pagina === 0
       ? `?cnpj=${digitos(cnpj)}&dataReferencia=COMPETENCIA&dataInicio=${mes}-01&dataFim=${fim}&limit=100`
       : `?cursor=${encodeURIComponent(cursor)}`;
-    const r = await chamar(`/nfse${q}`);
+    const r = await chamar(chave, `/nfse${q}`);
     if (!r.ok || !r.corpo) return null;
     const lista = (Array.isArray(r.corpo) ? r.corpo : (r.corpo.itens ?? r.corpo.dados ?? r.corpo.data ?? r.corpo.items ?? r.corpo.notas ?? [])) as Record<string, unknown>[];
     const achou = lista.find((n) => String(n.idExterno ?? "") === idExterno);
@@ -129,8 +125,7 @@ export async function procurarPorIdExterno(cnpj: string, idExterno: string, comp
 }
 
 /** Baixa o PDF ou o XML (a Digisan exige a chave; o navegador baixa por uma rota do A Chegada). */
-export async function baixarArquivo(id: string, tipo: "pdf" | "xml"): Promise<Response | null> {
-  const chave = process.env.DIGISAN_API_KEY;
+export async function baixarArquivo(chave: string | null, id: string, tipo: "pdf" | "xml"): Promise<Response | null> {
   if (!chave) return null;
   try {
     const r = await fetch(`${BASE}/nfse/${encodeURIComponent(id)}/${tipo}`, { headers: { "x-api-key": chave }, signal: AbortSignal.timeout(25_000), cache: "no-store" });
@@ -139,9 +134,9 @@ export async function baixarArquivo(id: string, tipo: "pdf" | "xml"): Promise<Re
 }
 
 /** Cadastra o aviso (webhook) da Digisan apontando para o A Chegada. */
-export const cadastrarWebhook = (url: string) =>
-  chamar("/webhook", { method: "POST", body: JSON.stringify({ url, method: "POST", headers: { Authorization: `Bearer ${segredoWebhook()}` } }) });
-export const verWebhook = () => chamar("/webhook");
+export const cadastrarWebhook = (chave: string, url: string) =>
+  chamar(chave, "/webhook", { method: "POST", body: JSON.stringify({ url, method: "POST", headers: { Authorization: `Bearer ${segredoWebhook(chave)}` } }) });
+export const verWebhook = (chave: string) => chamar(chave, "/webhook");
 
 /** Traduz o status da Digisan para o do A Chegada. */
 export function statusDoApp(statusDigisan: string | undefined): { status: string; cancelamentoRecusado?: boolean } {

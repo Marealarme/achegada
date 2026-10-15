@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
-import { digisanLigada, type NfseConfig } from "@/lib/notas/digisan";
+import type { NfseConfig } from "@/lib/notas/digisan";
+import { chaveDigisan } from "@/lib/notas/chave";
+import { liberarEmissao } from "./configurar/actions";
 import { notasNoPeriodo, periodoPlano } from "@/lib/notas/emissao";
 import { linhasNotas } from "@/lib/notas/linhas";
 import { PDFS_POR_PARTE, STATUS_PACOTE } from "@/lib/notas/status";
@@ -52,7 +54,10 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
   ]);
   const partes = Math.ceil((noPacote ?? 0) / PDFS_POR_PARTE);
   const periodo = periodoPlano(cfg?.cicloDia);
-  const configurada = digisanLigada() && !!cfg?.prestadorCnpj && !!cfg?.servico && !semTabela;
+  const temChave = !!(await chaveDigisan(db, s.pousada.id));
+  const configurada = temChave && !!cfg?.prestadorCnpj && !!cfg?.servico && !semTabela;
+  const dono = s.perfil.papel === "dono";
+  const temAutorizada = (notas ?? []).some((n) => (n as { status: string }).status === "autorizada");
   const limite = cfg?.limiteMensal ?? 160;
 
   return (
@@ -62,7 +67,8 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
         <section className="panel">
           <div className="panel-head">
             <h2>Notas fiscais · {MESES[m - 1]} de {ano}</h2>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {dono && <Link className="btn ghost" href="/painel/notas/configurar">Configurar</Link>}
               <Link className="btn ghost" href={`/painel/notas?mes=${anterior}`}>← {MESES[(m + 10) % 12]}</Link>
               <Link className="btn ghost" href={`/painel/notas?mes=${proximo}`}>{MESES[m % 12]} →</Link>
             </div>
@@ -76,8 +82,9 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
 
           {!configurada && (
             <p className="aviso">
-              A emissão ainda não está ligada: {!digisanLigada() ? "falta cadastrar a chave da Digisan no servidor" : semTabela ? "falta a atualização do banco (0013)" : "falta configurar o serviço e o CNPJ"}.
-              Os botões de emitir ficam desligados até lá.
+              A emissão ainda não está ligada: {semTabela ? "falta a atualização do banco (0013)" : !temChave ? "falta cadastrar a chave da Digisan" : "falta configurar o serviço e o CNPJ"}.
+              Os botões de emitir ficam desligados até lá.{" "}
+              {dono ? <Link href="/painel/notas/configurar">Configurar a emissão</Link> : "Peça ao dono da pousada para configurar."}
             </p>
           )}
           {configurada && !cfg?.webhookId && s.perfil.papel === "dono" && (
@@ -87,7 +94,14 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
             </form>
           )}
           {configurada && !cfg?.liberada && (
-            <p className="aviso">Fase de teste: emita <b>uma</b> nota e confira o PDF. A emissão das demais é liberada depois da conferência.</p>
+            <div className="aviso">
+              Fase de teste: emita <b>uma</b> nota e confira o PDF. A emissão das demais é liberada depois da conferência.
+              {dono && temAutorizada && (
+                <form action={liberarEmissao} style={{ marginTop: 8 }}>
+                  <BotaoAcao className="btn mini primary" aguardando="Liberando…">Conferi o PDF: liberar a emissão das outras notas</BotaoAcao>
+                </form>
+              )}
+            </div>
           )}
 
           {(noPacote ?? 0) > 0 && (

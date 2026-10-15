@@ -56,7 +56,7 @@ export async function aplicarRetorno(db: SupabaseClient, notaId: string, dto: Re
  *  - antes de chamar a Digisan, grava a nota como "enviando" — o índice único do banco impede uma 2ª nota ativa da mesma reserva;
  *  - se a resposta se perder (rede/timeout), a nota fica "verificar" e NUNCA é reenviada às cegas: o app procura na Digisan pelo idExterno.
  */
-export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: NfseConfig, l: LinhaNota, autorId: string | null): Promise<{ ok: boolean; mensagem: string }> {
+export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: NfseConfig, chave: string, l: LinhaNota, autorId: string | null): Promise<{ ok: boolean; mensagem: string }> {
   if (l.pendencias.length || !l.numeroReserva || !l.total) return { ok: false, mensagem: `${l.titular}: tem pendência (${l.pendencias.join(", ") || "sem valor"})` };
 
   const { data: nota, error } = await db.from("notas_fiscais").insert({
@@ -67,7 +67,7 @@ export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: 
     return { ok: false, mensagem: error?.code === "23505" ? `${l.titular}: esta reserva já tem nota emitida ou em processamento` : `${l.titular}: não foi possível registrar a nota` };
   }
 
-  const r = await emitirNfse(montarNfse(l, cfg));
+  const r = await emitirNfse(chave, montarNfse(l, cfg));
   if (r.ok && r.corpo?.id) {
     await db.from("notas_fiscais").update({ digisan_id: String(r.corpo.id), status: "processando", atualizada_em: new Date().toISOString() }).eq("id", nota.id);
     if (r.corpo.status) await aplicarRetorno(db, nota.id, r.corpo);
@@ -84,15 +84,15 @@ export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: 
 }
 
 /** Atualiza a nota consultando a Digisan (pelo id; sem id, procura pelo idExterno). */
-export async function atualizarNota(db: SupabaseClient, cfg: NfseConfig | null, n: Nota): Promise<void> {
+export async function atualizarNota(db: SupabaseClient, cfg: NfseConfig | null, chave: string, n: Nota): Promise<void> {
   if (n.digisan_id) {
-    const r = await consultarNfse(n.digisan_id);
+    const r = await consultarNfse(chave, n.digisan_id);
     if (r.ok && r.corpo) await aplicarRetorno(db, n.id, r.corpo);
     else await db.from("notas_fiscais").update({ mensagem: `Consulta à Digisan falhou: ${mensagemErro(r)}`, atualizada_em: new Date().toISOString() }).eq("id", n.id);
     return;
   }
   if (!cfg) return;
-  const achada = await procurarPorIdExterno(cfg.prestadorCnpj, n.id_externo, n.competencia ?? n.criada_em.slice(0, 10));
+  const achada = await procurarPorIdExterno(chave, cfg.prestadorCnpj, n.id_externo, n.competencia ?? n.criada_em.slice(0, 10));
   if (achada) { await aplicarRetorno(db, n.id, achada); return; }
   // não existe na Digisan: o envio não chegou → libera a reserva para emitir de novo
   if (n.status === "verificar" && Date.now() - Date.parse(n.criada_em) > 10 * 60_000)

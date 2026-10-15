@@ -3,6 +3,7 @@ import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cpfFormatar } from "@/lib/util";
 import { baixarArquivo } from "@/lib/notas/digisan";
+import { chaveDigisan } from "@/lib/notas/chave";
 import { linhasNotas, numeroReserva } from "@/lib/notas/linhas";
 import { PDFS_POR_PARTE, ROTULO_STATUS, STATUS_PACOTE } from "@/lib/notas/status";
 import { criarZip } from "@/lib/zip";
@@ -135,11 +136,12 @@ export async function GET(req: Request) {
   const xlsx = XLSX.write(livro, { type: "buffer", bookType: "xlsx", compression: true }) as Buffer;
 
   // ---------- PDFs (5 de cada vez) ----------
+  const chave = (await chaveDigisan(db, s.pousada.id))?.chave ?? null;
   const pdfs: { nome: string; dados: Uint8Array }[] = [];
   const faltaram: string[] = [];
   for (let i = 0; i < daParte.length; i += 5) {
     await Promise.all(daParte.slice(i, i + 5).map(async (n) => {
-      const r = n.digisan_id ? await baixarArquivo(n.digisan_id, "pdf") : null;
+      const r = n.digisan_id ? await baixarArquivo(chave, n.digisan_id, "pdf") : null;
       if (r) pdfs.push({ nome: `PDFs/${nomePdf(n)}`, dados: new Uint8Array(await r.arrayBuffer()) });
       else faltaram.push(`Nota ${n.numero ?? "?"}`);
     }));
