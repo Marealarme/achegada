@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
+import { podeConfigurar, sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cpfFormatar } from "@/lib/util";
 import { baixarArquivo } from "@/lib/notas/digisan";
@@ -51,7 +51,7 @@ function planilha(dados: Record<string, unknown>[], vazio: string, colunasDinhei
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams;
   const s = await sessaoEquipe({ exigirAssinatura: true });
-  if (!podeConfigurar(s)) return new Response("Só o dono ou a gerência.", { status: 403 });
+  if (!podeConfigurar(s) || !temNotas(s)) return new Response("Só o dono ou a gerência, com o adicional de notas fiscais ativo.", { status: 403 });
   const mes = /^\d{4}-\d{2}$/.test(q.get("mes") ?? "") ? q.get("mes")! : new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 7);
   const [ano, m] = mes.split("-").map(Number);
   const ini = `${mes}-01`, fim = new Date(Date.UTC(ano, m, 0)).toISOString().slice(0, 10);

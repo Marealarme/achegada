@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { sessaoEquipe } from "@/lib/sessao";
+import { sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { chaveDigisan } from "@/lib/notas/chave";
 import type { NfseConfig } from "@/lib/notas/digisan";
@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function ConfigurarNotas() {
   const s = await sessaoEquipe({ exigirAssinatura: true });
   if (s.perfil.papel !== "dono") redirect("/painel/notas");
+  if (!temNotas(s)) redirect("/painel/assinatura");
   const db = supabaseServico();
   const [{ data: p }, chave] = await Promise.all([
     db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle(),

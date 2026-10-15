@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
-import { criarCheckout, PLANOS, portalCliente, stripeLigado, type Plano } from "@/lib/assinatura";
+import { alterarAdicionalNotas, criarCheckout, PLANOS, portalCliente, stripeLigado, type Plano } from "@/lib/assinatura";
+import { revalidatePath } from "next/cache";
 
 async function base() {
   const h = await headers();
@@ -20,7 +21,7 @@ export async function assinar(form: FormData) {
   let url: string;
   try {
     url = await criarCheckout({
-      pousadaId: s.pousada.id, nomePousada: s.pousada.nome, email: s.email, plano, base: await base(),
+      pousadaId: s.pousada.id, nomePousada: s.pousada.nome, email: s.email, plano, notas: form.get("notas") === "on", base: await base(),
       jaTeveTeste: !!(p?.stripe_subscription_id || p?.teste_ate), customerId: p?.stripe_customer_id ?? null,
     });
   } catch (e) {
@@ -45,4 +46,21 @@ export async function gerenciar() {
     redirect(`/painel/assinatura?erro=${encodeURIComponent(msg.slice(0, 300))}`);
   }
   redirect(url);
+}
+
+/** Liga ou desliga o adicional "Notas fiscais automáticas" numa assinatura que já existe. */
+export async function alterarNotas(form: FormData) {
+  const s = await sessaoEquipe();
+  if (s.perfil.papel !== "dono" || !stripeLigado()) redirect("/painel/assinatura");
+  const ligar = form.get("ligar") === "1";
+  const { data: p } = await supabaseServico().from("pousadas").select("stripe_subscription_id").eq("id", s.pousada.id).single();
+  if (!p?.stripe_subscription_id) redirect("/painel/assinatura");
+  try { await alterarAdicionalNotas(p.stripe_subscription_id, ligar); }
+  catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[Stripe] adicional notas", msg);
+    redirect(`/painel/assinatura?erro=${encodeURIComponent(msg.slice(0, 300))}`);
+  }
+  revalidatePath("/painel", "layout");
+  redirect(`/painel/assinatura?notas=${ligar ? "on" : "off"}`);
 }

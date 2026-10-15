@@ -11,6 +11,8 @@ export const PLANOS = {
   ate40: { nome: "Pousada+", descricao: "De 26 a 40 chalés/quartos", valor: 19900, maxUnidades: 40 },
 } as const;
 export type Plano = keyof typeof PLANOS;
+/** Adicional: notas fiscais automáticas (NFS-e pela Digisan da pousada). Mesmo valor em qualquer plano. */
+export const ADICIONAL_NOTAS = { nome: "Notas fiscais automáticas", valor: 4900, lookup: "achegada_notas_mensal" } as const;
 export const DIAS_TESTE = 30;
 
 export const stripeLigado = () => !!process.env.STRIPE_SECRET_KEY;
@@ -42,8 +44,31 @@ async function precoDoPlano(plano: Plano): Promise<string> {
   return preco.id;
 }
 
+/** Preço do adicional de notas fiscais no Stripe (cria na primeira vez). */
+async function precoAdicionalNotas(): Promise<string> {
+  const s = stripe();
+  const achados = await s.prices.list({ lookup_keys: [ADICIONAL_NOTAS.lookup], active: true, limit: 1 });
+  if (achados.data[0]) return achados.data[0].id;
+  const produto = await s.products.create({ name: `A Chegada · ${ADICIONAL_NOTAS.nome}`, description: "Emissão de NFS-e das reservas pelo A Chegada (a conta da Digisan é da pousada).", metadata: { app: "achegada", adicional: "notas" } });
+  const preco = await s.prices.create({
+    product: produto.id, currency: "brl", unit_amount: ADICIONAL_NOTAS.valor, recurring: { interval: "month" },
+    lookup_key: ADICIONAL_NOTAS.lookup, nickname: "A Chegada notas fiscais mensal", metadata: { app: "achegada", adicional: "notas" },
+  });
+  return preco.id;
+}
+
+/** Liga ou desliga o adicional de notas numa assinatura que já existe (a diferença entra proporcional na próxima fatura). */
+export async function alterarAdicionalNotas(subscriptionId: string, ligar: boolean) {
+  const s = stripe();
+  const sub = await s.subscriptions.retrieve(subscriptionId);
+  const item = sub.items.data.find((i) => i.price?.lookup_key === ADICIONAL_NOTAS.lookup);
+  if (ligar && !item) await s.subscriptionItems.create({ subscription: sub.id, price: await precoAdicionalNotas(), quantity: 1, proration_behavior: "create_prorations" });
+  if (!ligar && item) await s.subscriptionItems.del(item.id, { proration_behavior: "create_prorations" });
+  await sincronizarAssinatura(await s.subscriptions.retrieve(subscriptionId));
+}
+
 /** Abre a página de pagamento do Stripe (cartão) com 30 dias grátis na primeira assinatura. */
-export async function criarCheckout(args: { pousadaId: string; nomePousada: string; email: string; plano: Plano; base: string; jaTeveTeste: boolean; customerId: string | null }) {
+export async function criarCheckout(args: { pousadaId: string; nomePousada: string; email: string; plano: Plano; notas: boolean; base: string; jaTeveTeste: boolean; customerId: string | null }) {
   const s = stripe();
   let customer = args.customerId;
   if (!customer) {
@@ -55,7 +80,10 @@ export async function criarCheckout(args: { pousadaId: string; nomePousada: stri
     mode: "subscription",
     customer,
     client_reference_id: args.pousadaId,
-    line_items: [{ price: await precoDoPlano(args.plano), quantity: 1 }],
+    line_items: [
+      { price: await precoDoPlano(args.plano), quantity: 1 },
+      ...(args.notas ? [{ price: await precoAdicionalNotas(), quantity: 1 }] : []),
+    ],
     payment_method_collection: "always",
     subscription_data: {
       ...(args.jaTeveTeste ? {} : { trial_period_days: DIAS_TESTE }),
@@ -87,8 +115,9 @@ export async function sincronizarAssinatura(sub: Stripe.Subscription) {
     pousadaId = data?.id;
   }
   if (!pousadaId) return;
-  const lookup = sub.items.data[0]?.price?.lookup_key ?? "";
-  const plano = (Object.keys(PLANOS) as Plano[]).find((p) => lookup === `achegada_${p}_mensal`) ?? sub.metadata?.plano ?? null;
+  const lookups = sub.items.data.map((i) => i.price?.lookup_key ?? "");
+  const plano = (Object.keys(PLANOS) as Plano[]).find((p) => lookups.includes(`achegada_${p}_mensal`)) ?? sub.metadata?.plano ?? null;
+  const notas = lookups.includes(ADICIONAL_NOTAS.lookup) && !["canceled", "incomplete_expired"].includes(sub.status);
   const { data: atual } = await db.from("pousadas").select("assinatura_status").eq("id", pousadaId).maybeSingle();
   if (atual?.assinatura_status === "isenta") return;
   await db.from("pousadas").update({
@@ -97,5 +126,6 @@ export async function sincronizarAssinatura(sub: Stripe.Subscription) {
     stripe_customer_id: customerId,
     teste_ate: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
     plano,
+    adicional_notas: notas,
   }).eq("id", pousadaId);
 }

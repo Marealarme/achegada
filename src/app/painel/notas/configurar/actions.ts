@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { sessaoEquipe } from "@/lib/sessao";
+import { sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cifrar, criptoDisponivel } from "@/lib/cripto";
 import { verWebhook, type NfseConfig } from "@/lib/notas/digisan";
@@ -18,6 +18,7 @@ const estavel = (v: unknown): string =>
 export async function salvarConfigNfse(_: string, f: FormData): Promise<string> {
   const s = await sessaoEquipe({ exigirAssinatura: true });
   if (s.perfil.papel !== "dono") return "Só o dono pode configurar a emissão de notas.";
+  if (!temNotas(s)) return "Ative o adicional de notas fiscais na assinatura.";
   const db = supabaseServico();
   const { data: p } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const antes = (p?.nfse_config ?? {}) as Partial<NfseConfig> & { liberada?: boolean; webhookId?: string };
@@ -97,7 +98,7 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
 /** Libera a emissão de todas as notas depois de conferir o PDF da nota de teste. Só o dono. */
 export async function liberarEmissao(): Promise<void> {
   const s = await sessaoEquipe({ exigirAssinatura: true });
-  if (s.perfil.papel !== "dono") return;
+  if (s.perfil.papel !== "dono" || !temNotas(s)) return;
   const db = supabaseServico();
   const { data: p } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const cfg = p?.nfse_config as Record<string, unknown> | null;

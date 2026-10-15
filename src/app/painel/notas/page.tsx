@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
+import { podeConfigurar, sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import type { NfseConfig } from "@/lib/notas/digisan";
 import { chaveDigisan } from "@/lib/notas/chave";
@@ -22,6 +22,7 @@ const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julh
 export default async function Notas({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
   const s = await sessaoEquipe({ exigirAssinatura: true });
   if (!podeConfigurar(s)) redirect("/painel");
+  if (!temNotas(s)) redirect("/painel/assinatura");
   const hojeMes = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 7);
   const { mes: mesParam } = await searchParams;
   const mes = /^\d{4}-\d{2}$/.test(mesParam ?? "") ? mesParam! : hojeMes;

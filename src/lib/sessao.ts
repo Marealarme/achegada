@@ -6,6 +6,7 @@ import { stripeLigado } from "@/lib/assinatura";
 export type PousadaSessao = {
   id: string; nome: string; slug: string; cidade: string | null; logo_url: string | null; whatsapp: string | null;
   assinatura_status: string; teste_ate: string | null; plano: string | null; qtd_unidades: number | null;
+  adicional_notas?: boolean;
 };
 export type Sessao = {
   db: Awaited<ReturnType<typeof supabaseEquipe>>;
@@ -26,9 +27,10 @@ export async function sessaoEquipe(opcoes: { exigirAssinatura?: boolean } = {}):
   const { data: perfil } = await db.from("perfis").select("nome, papel, pousada_id").eq("user_id", auth.user.id).maybeSingle();
   if (!perfil) redirect("/cadastrar?etapa=pousada");
 
-  let { data: pousada } = await db.from("pousadas")
-    .select("id, nome, slug, cidade, logo_url, whatsapp, assinatura_status, teste_ate, plano, qtd_unidades")
-    .eq("id", perfil.pousada_id).maybeSingle();
+  const CAMPOS = "id, nome, slug, cidade, logo_url, whatsapp, assinatura_status, teste_ate, plano, qtd_unidades";
+  const comAdicional = await db.from("pousadas").select(`${CAMPOS}, adicional_notas`).eq("id", perfil.pousada_id).maybeSingle();
+  let pousada: Record<string, unknown> | null = comAdicional.data;
+  if (comAdicional.error) pousada = (await db.from("pousadas").select(CAMPOS).eq("id", perfil.pousada_id).maybeSingle()).data; // antes da migração 0015
   if (!pousada) {
     // antes da migração 0006
     const { data } = await db.from("pousadas").select("id, nome, slug, whatsapp").eq("id", perfil.pousada_id).maybeSingle();
@@ -36,9 +38,12 @@ export async function sessaoEquipe(opcoes: { exigirAssinatura?: boolean } = {}):
   }
   if (!pousada) redirect("/entrar");
 
-  if (opcoes.exigirAssinatura && stripeLigado() && !ATIVAS.includes(pousada.assinatura_status)) redirect("/painel/assinatura");
+  if (opcoes.exigirAssinatura && stripeLigado() && !ATIVAS.includes(String(pousada.assinatura_status))) redirect("/painel/assinatura");
 
-  return { db, userId: auth.user.id, email: auth.user.email ?? "", perfil: perfil as Sessao["perfil"], pousada: pousada as PousadaSessao };
+  return { db, userId: auth.user.id, email: auth.user.email ?? "", perfil: perfil as Sessao["perfil"], pousada: pousada as unknown as PousadaSessao };
 }
+
+/** Notas fiscais automáticas: adicional pago na assinatura (pousadas isentas, como a piloto, têm tudo). */
+export const temNotas = (s: Sessao) => s.pousada.assinatura_status === "isenta" || !!s.pousada.adicional_notas;
 
 export const podeConfigurar = (s: Sessao) => s.perfil.papel === "dono" || s.perfil.papel === "gerente";

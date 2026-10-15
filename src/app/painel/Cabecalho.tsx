@@ -35,7 +35,7 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
         <Link href="/painel" aria-current={atual === "reservas" ? "page" : undefined}>Reservas</Link>
         <Link href="/painel/historico" aria-current={atual === "historico" ? "page" : undefined}>Histórico</Link>
         <Link href="/painel/sem-reserva" aria-current={atual === "sem-reserva" ? "page" : undefined}>Fichas sem reserva</Link>
-        {gestor && <Link href="/painel/notas" aria-current={atual === "notas" ? "page" : undefined}>Notas fiscais</Link>}
+        {gestor && (s.pousada.assinatura_status === "isenta" || !!s.pousada.adicional_notas) && <Link href="/painel/notas" aria-current={atual === "notas" ? "page" : undefined}>Notas fiscais</Link>}
         <Link href="/painel/converter" aria-current={atual === "converter" ? "page" : undefined}>Converter planilha</Link>
         {gestor && <Link href="/painel/config" aria-current={atual === "config" ? "page" : undefined}>Configurações</Link>}
         {s.perfil.papel === "dono" && s.pousada.assinatura_status !== "isenta" && (

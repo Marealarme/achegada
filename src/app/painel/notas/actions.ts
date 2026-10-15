@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
+import { podeConfigurar, sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import { cadastrarWebhook, cancelarNfse, mensagemErro, type NfseConfig } from "@/lib/notas/digisan";
 import { chaveDigisan, urlWebhook } from "@/lib/notas/chave";
@@ -13,6 +13,7 @@ const LOTE_MAX = 25;
 async function contexto() {
   const s = await sessaoEquipe({ exigirAssinatura: true });
   if (!podeConfigurar(s)) throw new Error("Só o dono ou a gerência podem emitir notas.");
+  if (!temNotas(s)) throw new Error("O adicional de notas fiscais não está ativo nesta assinatura.");
   const db = supabaseServico(); // notas só são gravadas pelo servidor; tudo filtrado pela pousada da sessão
   const { data } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const cfg = (data?.nfse_config ?? null) as (NfseConfig & { liberada?: boolean; webhookId?: string }) | null;
