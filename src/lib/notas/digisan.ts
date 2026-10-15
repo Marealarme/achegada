@@ -23,6 +23,7 @@ export type NfseConfig = {
   naturezaTributacao?: number;
   enviarPorEmail?: boolean;
   limiteMensal?: number;                 // plano da Digisan (padrão 160)
+  prefixoDescricao?: string;             // começo do texto da nota (padrão "Hospedagem"); muda junto com o serviço
   servico: Record<string, unknown>;      // copiado tal como está em Cadastros > Serviços (código, alíquota, CNAE, NBS…)
 };
 
@@ -51,8 +52,8 @@ const dataBr = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
 const digitos = (s: string | null | undefined) => String(s ?? "").replace(/\D/g, "");
 
 /** Texto da nota: "Hospedagem – [Chalé] – [check-in] a [check-out] – [N] noites – Reserva [nº]". */
-export function descricaoNota(l: LinhaNota) {
-  return `Hospedagem – ${l.chale || "Chalé"} – ${dataBr(l.checkIn)} a ${dataBr(l.checkOut)} – ${l.noites} ${l.noites === 1 ? "noite" : "noites"} – Reserva ${l.numeroReserva}`;
+export function descricaoNota(l: LinhaNota, prefixo = "Hospedagem") {
+  return `${prefixo} – ${l.chale || "Chalé"} – ${dataBr(l.checkIn)} a ${dataBr(l.checkOut)} – ${l.noites} ${l.noites === 1 ? "noite" : "noites"} – Reserva ${l.numeroReserva}`;
 }
 
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
@@ -90,7 +91,7 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
     tomador,
     servico: {
       ...cfg.servico,                              // dados fixos do serviço cadastrado na Digisan
-      descricao: descricaoNota(l),
+      descricao: descricaoNota(l, cfg.prefixoDescricao || "Hospedagem"),
       valorServicos: total,                        // ISS já incluído no valor total
       ...(aliquota !== null ? { baseCalculo: total, valorIss: Math.round(total * aliquota) / 100 } : {}),
     },
