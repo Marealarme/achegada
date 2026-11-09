@@ -43,7 +43,7 @@ export async function sessaoEquipe(opcoes: { exigirAssinatura?: boolean } = {}):
   return { db, userId: auth.user.id, email: auth.user.email ?? "", perfil: perfil as Sessao["perfil"], pousada: pousada as unknown as PousadaSessao };
 }
 
-/** Notas fiscais automáticas: adicional pago na assinatura (pousadas isentas, como a piloto, têm tudo). */
-export const temNotas = (s: Sessao) => s.pousada.assinatura_status === "isenta" || !!s.pousada.adicional_notas;
+/** Notas fiscais automáticas: incluídas em todos os planos (a pousada paga só a própria conta da Digisan, direto a eles). */
+export const temNotas = (_s: Sessao) => true;
 
 export const podeConfigurar = (s: Sessao) => s.perfil.papel === "dono" || s.perfil.papel === "gerente";

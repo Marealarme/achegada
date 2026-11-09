@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { sessaoEquipe } from "@/lib/sessao";
-import { ADICIONAL_NOTAS, DIAS_TESTE, PLANOS, planoPorUnidades, reais, stripeLigado, type Plano } from "@/lib/assinatura";
+import { DIAS_TESTE, PLANOS, planoPorUnidades, reais, stripeLigado, type Plano } from "@/lib/assinatura";
 import Cabecalho from "../Cabecalho";
 import BotaoAcao from "../BotaoAcao";
-import { alterarNotas, assinar, gerenciar } from "./actions";
+import { assinar, gerenciar } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Assinatura" };
@@ -54,13 +54,9 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
           <>
             <div className="nf-pacote">
               <div>
-                <b>{ADICIONAL_NOTAS.nome}</b> · +{reais(ADICIONAL_NOTAS.valor)}/mês {s.pousada.adicional_notas && <span className="pill ok">ativo</span>}
-                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, pela conta da Digisan da pousada. Requer conta própria na Digisan, contratada diretamente com eles (a partir de R$ 70/mês no anual ou R$ 100/mês no mensal), e o certificado digital A1 da pousada.</div>
+                <b>Notas fiscais automáticas</b> · incluídas no plano <span className="pill ok">sem custo extra</span>
+                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, pela conta da Digisan da pousada. A pousada contrata a Digisan diretamente com eles (a partir de R$ 70/mês no anual ou R$ 100/mês no mensal) e precisa do certificado digital A1. O A Chegada não cobra nada a mais por isso.</div>
               </div>
-              <form action={alterarNotas}>
-                <input type="hidden" name="ligar" value={s.pousada.adicional_notas ? "0" : "1"} />
-                <BotaoAcao className={s.pousada.adicional_notas ? "btn" : "btn primary"} aguardando="Atualizando…">{s.pousada.adicional_notas ? "Desativar" : `Ativar (+${reais(ADICIONAL_NOTAS.valor)}/mês)`}</BotaoAcao>
-              </form>
             </div>
             <form action={gerenciar}><BotaoAcao className="btn primary" aguardando="Abrindo…">Trocar cartão, ver faturas ou cancelar</BotaoAcao></form>
           </>
@@ -73,7 +69,6 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
                   <span className="label">{PLANOS[k].nome}{k === sugerido ? " · indicado" : ""}</span>
                   <strong>{reais(PLANOS[k].valor)}<span className="muted small">/mês</span></strong>
                   <span className="muted small">{PLANOS[k].descricao}</span>
-                  <label className="check small"><input type="checkbox" name="notas" /><span>+ {ADICIONAL_NOTAS.nome} ({reais(ADICIONAL_NOTAS.valor)}/mês)</span></label>
                   <BotaoAcao className={k === sugerido ? "btn primary" : "btn"} aguardando="Abrindo pagamento…">Começar {DIAS_TESTE} dias grátis</BotaoAcao>
                 </form>
               ))}
