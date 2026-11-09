@@ -1,13 +1,13 @@
 import Link from "next/link";
 import Marca from "../Marca";
 import { sair } from "../entrar/actions";
-import type { Sessao } from "@/lib/sessao";
+import { ehAdmin, type Sessao } from "@/lib/sessao";
 
 const STATUS: Record<string, string> = {
   trialing: "Teste grátis", active: "Assinatura ativa", past_due: "Pagamento pendente", isenta: "",
 };
 
-export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" | "config" | "assinatura" | "converter" | "historico" | "sem-reserva" | "notas" }) {
+export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" | "config" | "assinatura" | "converter" | "historico" | "sem-reserva" | "notas" | "clientes" }) {
   const gestor = s.perfil.papel === "dono" || s.perfil.papel === "gerente";
   const diasTeste = s.pousada.assinatura_status === "trialing" && s.pousada.teste_ate
     ? Math.max(0, Math.ceil((Date.parse(s.pousada.teste_ate) - Date.now()) / 864e5)) : null;
@@ -38,6 +38,7 @@ export default function Cabecalho({ s, atual }: { s: Sessao; atual: "reservas" |
         {gestor && <Link href="/painel/notas" aria-current={atual === "notas" ? "page" : undefined}>Notas fiscais</Link>}
         <Link href="/painel/converter" aria-current={atual === "converter" ? "page" : undefined}>Converter planilha</Link>
         {gestor && <Link href="/painel/config" aria-current={atual === "config" ? "page" : undefined}>Configurações</Link>}
+        {ehAdmin(s.email) && <Link href="/painel/clientes" aria-current={atual === "clientes" ? "page" : undefined}>Clientes</Link>}
         {s.perfil.papel === "dono" && s.pousada.assinatura_status !== "isenta" && (
           <Link href="/painel/assinatura" aria-current={atual === "assinatura" ? "page" : undefined}>
             Assinatura{STATUS[s.pousada.assinatura_status] ? ` · ${STATUS[s.pousada.assinatura_status]}` : ""}

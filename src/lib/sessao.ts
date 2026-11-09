@@ -47,3 +47,11 @@ export async function sessaoEquipe(opcoes: { exigirAssinatura?: boolean } = {}):
 export const temNotas = (_s: Sessao) => true;
 
 export const podeConfigurar = (s: Sessao) => s.perfil.papel === "dono" || s.perfil.papel === "gerente";
+
+/** Administradores do A Chegada (dono do produto): veem a aba Clientes com todas as pousadas cadastradas.
+ * Variável ADMIN_EMAILS na Vercel (separados por vírgula); sem ela, os e-mails do Marcello. Conferido sempre no servidor. */
+export function ehAdmin(email: string | null | undefined) {
+  const lista = (process.env.ADMIN_EMAILS || "contato@luachales.com.br,contato@innexperts.com.br")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return !!email && lista.includes(email.trim().toLowerCase());
+}
