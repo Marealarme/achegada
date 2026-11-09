@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { avisarNovoCadastro } from "@/lib/avisoCadastro";
 import { supabaseEquipe, supabaseServico } from "@/lib/supabase";
 import { cidadeOficial } from "@/lib/municipios";
 
@@ -70,6 +72,10 @@ export async function cadastrar(_: string, f: FormData): Promise<string> {
 
   const { error: errPerfil } = await db.from("perfis").insert({ user_id: userId, pousada_id: nova.id, nome, papel: "dono" });
   if (errPerfil) return "Não foi possível vincular sua conta à pousada. Tente de novo.";
+
+  // avisa o dono do A Chegada (depois da resposta, sem atrasar o cadastro)
+  const emailConta = logado?.email ?? email;
+  after(() => avisarNovoCadastro({ pousada, cidade, uf, unidades, nome, email: emailConta, whatsapp }));
 
   if (!logado) {
     const { error } = await equipe.auth.signInWithPassword({ email, password: senha });
