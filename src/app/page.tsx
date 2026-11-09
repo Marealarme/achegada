@@ -162,7 +162,7 @@ export default function Inicio() {
         </div>
         <div className="nf-pacote">
           <div>
-            <span className="label">Adicional opcional</span>
+            <div className="label">Adicional opcional</div>
             <b>{ADICIONAL_NOTAS.nome}</b> · +{reais(ADICIONAL_NOTAS.valor)}/mês, em qualquer plano
             <div className="muted small">Emite a nota fiscal de serviço (NFS-e) de cada reserva direto do painel: um clique por reserva ou todas do mês de uma vez, com conferência antes de emitir, PDF de cada nota e o pacote do mês pronto para a contabilidade. As notas saem no CNPJ da sua pousada.</div>
             <div className="muted small"><b>Requer conta própria na Digisan</b> (emissor oficial de notas), contratada diretamente com eles: planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal. Requer também o certificado digital A1 (e-CNPJ) da pousada.</div>
