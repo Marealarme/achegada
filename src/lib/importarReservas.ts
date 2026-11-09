@@ -172,5 +172,9 @@ export async function aplicarImportacao(pousadaId: string, autorId: string | nul
   if (valoresPassados) partes.push(`valor completado em ${valoresPassados} estadia(s) que já terminaram`);
   if (ignoradas.length) partes.push(`${ignoradas.length} ignorada(s)`);
   const aviso = leitura.mapaNovo && semMapas ? " (ligação de colunas não ficou salva: rode a migração 0008 no Supabase)" : "";
-  return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.${aviso}`, detalhes: ignoradas, ligacaoSalva: usouLigacao };
+  // período coberto pela planilha: ajuda a perceber quando o arquivo veio filtrado (ex.: só check-outs de um mês)
+  const br = (d: string) => d.split("-").reverse().join("/");
+  const entradas = reservas.map((r) => r.checkIn).sort(), saidas = reservas.map((r) => r.checkOut).sort();
+  const periodo = reservas.length ? ` A planilha tinha ${reservas.length} reserva(s), com check-in de ${br(entradas[0])} a ${br(entradas[entradas.length - 1])} e check-out até ${br(saidas[saidas.length - 1])}. Se faltou alguém, confira o filtro de datas usado ao exportar do sistema de reservas.` : "";
+  return { ok: true, mensagem: `Importação concluída: ${partes.join(", ")}.${aviso}${periodo}`, detalhes: ignoradas, ligacaoSalva: usouLigacao };
 }
