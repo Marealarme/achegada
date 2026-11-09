@@ -55,7 +55,7 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
             <div className="nf-pacote">
               <div>
                 <b>{ADICIONAL_NOTAS.nome}</b> · +{reais(ADICIONAL_NOTAS.valor)}/mês {s.pousada.adicional_notas && <span className="pill ok">ativo</span>}
-                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, pela conta da Digisan da pousada. O plano da Digisan é contratado à parte.</div>
+                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, pela conta da Digisan da pousada. Requer conta própria na Digisan, contratada diretamente com eles (a partir de R$ 70/mês no anual ou R$ 100/mês no mensal), e o certificado digital A1 da pousada.</div>
               </div>
               <form action={alterarNotas}>
                 <input type="hidden" name="ligar" value={s.pousada.adicional_notas ? "0" : "1"} />

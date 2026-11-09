@@ -59,7 +59,8 @@ const FAQ = [
   { q: "O que a pousada precisa para ligar a FNRH?", r: "Estar no Cadastur e gerar, uma única vez, a chave da API no sistema da FNRH com o gov.br do responsável. Leva uns 5 minutos e o painel mostra o passo a passo com os links do governo. Se precisar, a gente ajuda pelo WhatsApp." },
   { q: "Preciso trocar o meu sistema de reservas?", r: "Não. O A Chegada trabalha ao lado do seu sistema: você sobe a lista de reservas exportada (Hotel Link, HBook, Omnibees, Cloudbeds ou qualquer planilha) e segue usando o que já usa. Na primeira vez você diz em qual coluna está cada informação; depois ele reconhece sozinho." },
   { q: "E a LGPD?", r: "A pousada é a controladora dos dados e o A Chegada é o operador. Os dados ficam em servidores no Brasil, isolados por pousada, e senhas e chaves são criptografadas." },
-  { q: "O A Chegada emite nota fiscal dos hóspedes?", r: `Sim, com o adicional Notas fiscais automáticas (+${reais(ADICIONAL_NOTAS.valor)}/mês). O painel junta os dados da reserva e da ficha (CPF, endereço, valor) e emite a NFS-e pela sua conta na Digisan, que atende a maioria das prefeituras. A primeira nota é de teste: você confere o PDF antes de liberar as demais.` },
+  { q: "O A Chegada emite nota fiscal dos hóspedes?", r: `Sim, com o adicional Notas fiscais automáticas (+${reais(ADICIONAL_NOTAS.valor)}/mês). O painel junta os dados da reserva e da ficha (CPF, endereço, valor) e emite a NFS-e pela sua conta na Digisan, que atende a maioria das prefeituras. Você emite primeiro uma nota e confere o PDF antes de liberar as demais.` },
+  { q: "Preciso contratar a Digisan?", r: "Sim. O A Chegada automatiza a emissão, mas a Digisan é o emissor oficial e é contratada diretamente com eles, no CNPJ da sua pousada (planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal). Também é preciso o certificado digital A1 (e-CNPJ) da pousada, cadastrado na Digisan." },
   { q: "Tem fidelidade?", r: "Não. São 30 dias grátis e depois mensalidade no cartão. Cancele quando quiser, pelo próprio painel." },
   { q: "Tenho mais de 40 unidades. Atende?", r: `Sim. Fale com a ${EMPRESA} pelo WhatsApp ${FONE} para um plano sob medida.` },
 ];
@@ -163,7 +164,8 @@ export default function Inicio() {
           <div>
             <span className="label">Adicional opcional</span>
             <b>{ADICIONAL_NOTAS.nome}</b> · +{reais(ADICIONAL_NOTAS.valor)}/mês, em qualquer plano
-            <div className="muted small">Emite a nota fiscal de serviço (NFS-e) de cada reserva direto do painel: um clique por reserva ou todas do mês de uma vez, com conferência antes de emitir, PDF de cada nota e o pacote do mês pronto para a contabilidade. Funciona com a sua conta na Digisan (emissor de notas contratado à parte).</div>
+            <div className="muted small">Emite a nota fiscal de serviço (NFS-e) de cada reserva direto do painel: um clique por reserva ou todas do mês de uma vez, com conferência antes de emitir, PDF de cada nota e o pacote do mês pronto para a contabilidade. As notas saem no CNPJ da sua pousada.</div>
+            <div className="muted small"><b>Requer conta própria na Digisan</b> (emissor oficial de notas), contratada diretamente com eles: planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal. Requer também o certificado digital A1 (e-CNPJ) da pousada.</div>
           </div>
         </div>
         <p className="muted small">Todos incluem check-in ilimitado, FNRH automática, importação de reservas, logo da pousada e vários acessos da equipe. Sem fidelidade: cancela pelo próprio painel. Acima de 40 unidades, fale com a gente.</p>
