@@ -62,7 +62,7 @@ const FAQ = [
   { q: "O A Chegada emite nota fiscal dos hóspedes?", r: "Sim, sem custo extra: a emissão de notas fiscais está incluída em todos os planos. O painel junta os dados da reserva e da ficha (CPF, endereço, valor) e emite a NFS-e pela conta da sua pousada na Digisan, que atende a maioria das prefeituras. Você emite primeiro uma nota e confere o PDF antes de liberar as demais." },
   { q: "Preciso contratar a Digisan?", r: "Sim. O A Chegada automatiza a emissão sem cobrar nada a mais, mas a Digisan é o emissor oficial e é contratada diretamente com eles, no CNPJ da sua pousada: o contrato e o pagamento são entre a pousada e a Digisan (planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal). Também é preciso o certificado digital A1 (e-CNPJ) da pousada, cadastrado na Digisan." },
   { q: "Tem fidelidade?", r: "Não. São 30 dias grátis e depois mensalidade no cartão. Cancele quando quiser, pelo próprio painel." },
-  { q: "Tenho mais de 40 unidades. Atende?", r: `Sim. Fale com a ${EMPRESA} pelo WhatsApp ${FONE} para um plano sob medida.` },
+  { q: "O preço muda com o número de chalés ou quartos?", r: "Não. É o mesmo valor mensal para qualquer tamanho de pousada, com check-in ilimitado e notas fiscais automáticas inclusas." },
 ];
 
 
@@ -150,10 +150,10 @@ export default function Inicio() {
 
       <section className="lp-sec" id="planos">
         <span className="label">Planos</span>
-        <h2>Preço pelo tamanho da pousada. 30 dias grátis.</h2>
+        <h2>Um preço só, qualquer tamanho de pousada. 30 dias grátis.</h2>
         <div className="planos">
           {(Object.keys(PLANOS) as Plano[]).map((k) => (
-            <div key={k} className={k === "ate10" ? "plano seu" : "plano"}>
+            <div key={k} className={"plano seu"}>
               <span className="label">{PLANOS[k].nome}</span>
               <strong>{reais(PLANOS[k].valor)}<span className="muted small">/mês</span></strong>
               <span className="muted small">{PLANOS[k].descricao}</span>
@@ -168,7 +168,7 @@ export default function Inicio() {
             <div className="muted small"><b>Requer conta própria na Digisan</b> (emissor oficial de notas), contratada e paga diretamente a eles: planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal. Requer também o certificado digital A1 (e-CNPJ) da pousada.</div>
           </div>
         </div>
-        <p className="muted small">Todos incluem check-in ilimitado, FNRH automática, notas fiscais automáticas, importação de reservas, logo da pousada e vários acessos da equipe. Sem fidelidade: cancela pelo próprio painel. Acima de 40 unidades, fale com a gente.</p>
+        <p className="muted small">Todos incluem check-in ilimitado, FNRH automática, notas fiscais automáticas, importação de reservas, logo da pousada e vários acessos da equipe. Sem fidelidade: cancela pelo próprio painel.</p>
       </section>
 
       <section className="lp-sec">

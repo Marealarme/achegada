@@ -26,7 +26,7 @@ export async function cadastrar(_: string, f: FormData): Promise<string> {
   if (pousada.length < 3) return "Informe o nome da pousada.";
   if (!uf) return "Escolha o estado.";
   if (!cidade) return "Escolha a cidade na lista (digite e selecione uma das sugestões).";
-  if (!(unidades >= 1 && unidades <= 40)) return "Informe quantos chalés/quartos a pousada tem (até 40).";
+  if (!(unidades >= 1 && unidades <= 1000)) return "Informe quantos chalés/quartos a pousada tem.";
   if (whatsapp.length < 10) return "Informe o WhatsApp da pousada com DDD.";
   if (nome.split(/\s+/).length < 2) return "Informe seu nome completo.";
 

@@ -66,7 +66,7 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
               {(Object.keys(PLANOS) as Plano[]).map((k) => (
                 <form key={k} action={assinar} className={k === sugerido ? "plano seu" : "plano"}>
                   <input type="hidden" name="plano" value={k} />
-                  <span className="label">{PLANOS[k].nome}{k === sugerido ? " · indicado" : ""}</span>
+                  <span className="label">{PLANOS[k].nome}</span>
                   <strong>{reais(PLANOS[k].valor)}<span className="muted small">/mês</span></strong>
                   <span className="muted small">{PLANOS[k].descricao}</span>
                   <BotaoAcao className={k === sugerido ? "btn primary" : "btn"} aguardando="Abrindo pagamento…">Começar {DIAS_TESTE} dias grátis</BotaoAcao>

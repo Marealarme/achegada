@@ -12,7 +12,7 @@ export default function FormCadastro({ logado }: { logado: boolean }) {
     <form onSubmit={enviarSemApagar(acao)} className="secao">
       <div className="field"><label htmlFor="pousada">Nome da pousada</label><input id="pousada" name="pousada" type="text" required /></div>
       <CampoCidade obrigatorio />
-      <div className="field"><label htmlFor="unidades">Chalés / quartos</label><input id="unidades" name="unidades" type="number" min={1} max={40} required /></div>
+      <div className="field"><label htmlFor="unidades">Chalés / quartos</label><input id="unidades" name="unidades" type="number" min={1} max={1000} required /></div>
       <div className="field"><label htmlFor="whatsapp">WhatsApp da pousada</label><input id="whatsapp" name="whatsapp" type="tel" placeholder="(12) 99999-9999" required /></div>
       <div className="field"><label htmlFor="nome">Seu nome completo</label><input id="nome" name="nome" type="text" autoComplete="name" required /></div>
       {!logado && (

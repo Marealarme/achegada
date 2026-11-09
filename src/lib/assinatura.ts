@@ -6,9 +6,7 @@ import { supabaseServico } from "@/lib/supabase";
 // Variáveis da Vercel: STRIPE_SECRET_KEY (sk_live_… ou sk_test_…) e STRIPE_WEBHOOK_SECRET (whsec_…).
 
 export const PLANOS = {
-  ate10: { nome: "Essencial", descricao: "Até 10 chalés/quartos", valor: 9900, maxUnidades: 10 },
-  ate25: { nome: "Pousada", descricao: "De 11 a 25 chalés/quartos", valor: 14900, maxUnidades: 25 },
-  ate40: { nome: "Pousada+", descricao: "De 26 a 40 chalés/quartos", valor: 19900, maxUnidades: 40 },
+  unico: { nome: "A Chegada", descricao: "Qualquer número de chalés/quartos", valor: 9900 },
 } as const;
 export type Plano = keyof typeof PLANOS;
 /** Adicional: notas fiscais automáticas (NFS-e pela Digisan da pousada). Mesmo valor em qualquer plano. */
@@ -23,9 +21,8 @@ export function stripe() {
   return cliente;
 }
 
-export function planoPorUnidades(n: number | null | undefined): Plano {
-  const q = Number(n) || 0;
-  return q <= 10 ? "ate10" : q <= 25 ? "ate25" : "ate40";
+export function planoPorUnidades(_n?: number | null): Plano {
+  return "unico"; // preço único, independente do número de chalés/quartos
 }
 export const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
