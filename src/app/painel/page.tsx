@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
@@ -91,6 +92,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const r1 = await db.from("reservas").select("referencia_externa, valor_total, valor_pago").eq("id", atual.id).maybeSingle();
     extra = r1.error ? (await db.from("reservas").select("referencia_externa").eq("id", atual.id).maybeSingle()).data : r1.data;
   }
+  // respostas das perguntas da pousada (migração 0016)
+  let respostasExtras: { pergunta: string; resposta: string }[] = [];
+  if (atual?.pre) {
+    const rq = await db.from("pre_chegadas").select("respostas_extras").eq("reserva_id", atual.id).maybeSingle();
+    const lista = rq.error ? null : (rq.data as { respostas_extras?: unknown } | null)?.respostas_extras;
+    if (Array.isArray(lista)) respostasExtras = lista.filter((x) => x && typeof x === "object" && "pergunta" in x) as typeof respostasExtras;
+  }
   const reais = (v: number | string | null | undefined) => (v == null ? null : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
 
   const h = await headers();
@@ -137,6 +145,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                 <dt>Ofertas</dt><dd>{titular?.consentimento_marketing_em ? "Aceitou receber" : "Não aceitou"}</dd>
               </dl>
             </div>
+            {respostasExtras.length > 0 && (
+              <div className="field"><span className="label">Respostas às perguntas da pousada</span>
+                <dl className="kv">
+                  {respostasExtras.map((x, i) => <Fragment key={i}><dt>{x.pergunta}</dt><dd>{x.resposta}</dd></Fragment>)}
+                </dl>
+              </div>
+            )}
             <div className="field"><span className="label">Hóspedes cadastrados</span>
               <div className="people">
                 {atual.hospedes_reserva.map((x, i) => (

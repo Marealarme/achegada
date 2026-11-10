@@ -6,6 +6,7 @@ import { dataCurta, noites } from "@/lib/util";
 import CheckinFlow from "./CheckinFlow";
 import AcoesFinais from "./AcoesFinais";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
+import { normalizarPerguntas } from "@/lib/perguntas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -75,6 +76,9 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const unidade = r.unidades?.nome ?? "Chalé";
   const expirado = Date.parse(r.check_out) + 2 * 864e5 < Date.now();
   const { data: pre } = await db.from("pre_chegadas").select("id").eq("reserva_id", r.id).maybeSingle();
+  // perguntas extras da pousada (migração 0016; sem a coluna, segue sem perguntas)
+  const pq = await db.from("pousadas").select("perguntas_extras").eq("id", pousada.id).maybeSingle();
+  const perguntas = pq.error ? [] : normalizarPerguntas((pq.data as { perguntas_extras?: unknown } | null)?.perguntas_extras);
   const linhas = (t: string | null | undefined) => (t ?? "").split("\n").map((x) => x.trim()).filter(Boolean);
 
   return (
@@ -118,6 +122,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
             whatsapp={pousada.whatsapp}
             cafeIncluso={pousada.cafe_incluso ?? true}
             avisoEarlyLate={pousada.aviso_early_late ?? null}
+            perguntas={perguntas}
           />
         )}
       </article>

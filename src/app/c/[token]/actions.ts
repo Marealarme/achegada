@@ -8,6 +8,7 @@ import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { montarPayload, processarEnvio, type PessoaFicha } from "@/lib/fnrh/envio";
 import { vincularAposCheckin } from "@/lib/vinculo";
 import type { Endereco, Pessoa } from "./CheckinFlow";
+import { normalizarPerguntas, validarRespostas, type Resposta } from "@/lib/perguntas";
 
 export type CheckinEntrada = {
   token: string;
@@ -21,6 +22,7 @@ export type CheckinEntrada = {
   aceiteRegras: boolean;
   aceitePet: boolean;
   marketing: boolean;
+  respostas?: Record<string, string | string[]>;
 };
 
 const ESPECIES = ["Cachorro", "Gato", "Outro"];
@@ -82,6 +84,16 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   const motivo = ids(MOTIVOS_VIAGEM).includes(e.motivo) ? e.motivo : "LAZER_FERIAS";
   if (!e.aceiteRegras) return { ok: false, erro: "É preciso aceitar as regras da casa." };
   if (e.pet?.tem && (!e.aceitePet || !txt(e.pet.nome))) return { ok: false, erro: "Complete os dados do pet e aceite o termo." };
+
+  // perguntas extras da pousada (migração 0016; sem a coluna, não há perguntas)
+  let respostasExtras: Resposta[] = [];
+  const pq = await db.from("pousadas").select("perguntas_extras").eq("id", reserva.pousada_id).maybeSingle();
+  const perguntas = pq.error ? [] : normalizarPerguntas((pq.data as { perguntas_extras?: unknown } | null)?.perguntas_extras);
+  if (perguntas.length) {
+    const v = validarRespostas(perguntas, e.respostas);
+    if (!v.ok) return { ok: false, erro: v.erro };
+    respostasExtras = v.respostas;
+  }
 
   const agora = new Date().toISOString();
   const h = await headers();
@@ -146,7 +158,8 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
     aceite_pet_em: e.pet?.tem ? agora : null,
     ip,
   };
-  let { error: errPre } = await db.from("pre_chegadas").insert(dadosPre);
+  let { error: errPre } = await db.from("pre_chegadas").insert(perguntas.length ? ({ ...dadosPre, respostas_extras: respostasExtras } as Record<string, unknown>) : dadosPre);
+  if (errPre && perguntas.length) ({ error: errPre } = await db.from("pre_chegadas").insert(dadosPre)); // sem a coluna respostas_extras
   if (errPre) {
     // migração 0004 ainda não rodou: tenta sem os campos de viagem
     const { meio_transporte: _t, motivo_viagem: _m, ...semViagem } = dadosPre;

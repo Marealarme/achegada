@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { cpfFormatar, cpfValido, dataCurta, FNRH_HOSPEDE_URL, somenteDigitos } from "@/lib/util";
 import { DEFICIENCIA, GENEROS, MEIOS_TRANSPORTE, MOTIVOS_VIAGEM, PAISES, RACAS, TIPOS_DEFICIENCIA } from "@/lib/fnrh/dominios";
 import { enviarCheckin } from "./actions";
+import type { Pergunta } from "@/lib/perguntas";
 import AcoesFinais, { linkWhatsApp } from "./AcoesFinais";
 
 export type Pessoa = {
@@ -18,11 +19,12 @@ type Props = {
   token: string; titular: string; telefone: string | null; unidade: string; checkIn: string; checkOut: string; noites: number;
   adultos: number; criancas: number; regras: string[]; termoPet: string[]; cancelamento: string[];
   pousada: string; whatsapp: string | null; fnrhAutomatica: boolean; cafeIncluso: boolean; avisoEarlyLate: string | null;
+  perguntas: Pergunta[];
 };
 
-type Passo = "inicio" | "pessoas" | "endereco" | "chegada" | "estadia" | "regras" | "ficha" | "pronto";
+type Passo = "inicio" | "pessoas" | "endereco" | "chegada" | "perguntas" | "estadia" | "regras" | "ficha" | "pronto";
 const NOMES: Record<Passo, string> = {
-  inicio: "Boas-vindas", pessoas: "Quem vem", endereco: "Contato e endereço", chegada: "Chegada",
+  inicio: "Boas-vindas", pessoas: "Quem vem", endereco: "Contato e endereço", chegada: "Chegada", perguntas: "Para a pousada",
   estadia: "Sua estadia", regras: "Regras", ficha: "Ficha do governo", pronto: "Pronto",
 };
 
@@ -42,7 +44,7 @@ function Opcoes({ lista, vazio }: { lista: readonly { id: string; label: string 
 }
 
 export default function CheckinFlow(p: Props) {
-  const passos: Passo[] = ["inicio", "pessoas", "endereco", "chegada", "estadia", "regras", ...(p.fnrhAutomatica ? [] : (["ficha"] as Passo[])), "pronto"];
+  const passos: Passo[] = ["inicio", "pessoas", "endereco", "chegada", ...(p.perguntas.length ? (["perguntas"] as Passo[]) : []), "estadia", "regras", ...(p.fnrhAutomatica ? [] : (["ficha"] as Passo[])), "pronto"];
   const [indice, setIndice] = useState(0);
   const passo = passos[indice];
   const [erro, setErro] = useState("");
@@ -66,6 +68,13 @@ export default function CheckinFlow(p: Props) {
   const [marketing, setMarketing] = useState(false);
   const [fnrhOk, setFnrhOk] = useState(false);
   const [fichaEnviada, setFichaEnviada] = useState(false);
+  const [respostas, setRespostas] = useState<Record<string, string | string[]>>({});
+  const responder = (id: string, v: string | string[]) => setRespostas((r) => ({ ...r, [id]: v }));
+  const alternar = (q: Pergunta, opcao: string) => {
+    const atual = Array.isArray(respostas[q.id]) ? (respostas[q.id] as string[]) : [];
+    if (atual.includes(opcao)) responder(q.id, atual.filter((x) => x !== opcao));
+    else if (!q.max || atual.length < q.max) responder(q.id, [...atual, opcao]);
+  };
 
   const mudar = (i: number, campo: keyof Pessoa, valor: string) =>
     setPessoas((l) => l.map((x, j) => {
@@ -125,6 +134,12 @@ export default function CheckinFlow(p: Props) {
       }
     }
     if (passo === "chegada" && pet.tem && !pet.nome.trim()) return "Informe o nome do pet.";
+    if (passo === "perguntas")
+      for (const q of p.perguntas) {
+        const v = respostas[q.id];
+        const vazio = Array.isArray(v) ? v.length === 0 : !String(v ?? "").trim();
+        if (q.obrigatoria && vazio) return `Responda: “${q.texto}”.`;
+      }
     if (passo === "regras") {
       if (!aceiteRegras) return p.cancelamento.length > 0 ? "Para seguir, aceite as regras da casa e a política de cancelamento." : "Para seguir, aceite as regras da casa.";
       if (pet.tem && !aceitePet) return "Para hospedar o pet, aceite o termo pet.";
@@ -140,7 +155,7 @@ export default function CheckinFlow(p: Props) {
     if (e) return;
     if (passo === ultimoAntesDoFim) {
       iniciar(async () => {
-        const res = await enviarCheckin({ token: p.token, pessoas, endereco: end, horario, placa, transporte, motivo, pet, aceiteRegras, aceitePet, marketing });
+        const res = await enviarCheckin({ token: p.token, pessoas, endereco: end, horario, placa, transporte, motivo, pet, aceiteRegras, aceitePet, marketing, respostas });
         if (res.ok) { setFichaEnviada(res.fichaEnviada); setIndice(passos.length - 1); }
         else setErro(res.erro);
       });
@@ -334,6 +349,41 @@ export default function CheckinFlow(p: Props) {
                 </div>
               </div>
             )}
+          </>
+        )}
+
+        {passo === "perguntas" && (
+          <>
+            {p.perguntas.map((q) => {
+              const v = respostas[q.id];
+              const rotulo = <>{q.texto}{!q.obrigatoria && <span className="muted"> (opcional)</span>}</>;
+              const dica = q.ajuda || (q.tipo === "multipla" && q.max ? `Escolha até ${q.max}` : "");
+              if (q.tipo === "unica" || q.tipo === "multipla")
+                return (
+                  <fieldset className="field" key={q.id} style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend className="label" style={{ textTransform: "none", letterSpacing: 0, fontSize: "0.95rem" }}>{rotulo}</legend>
+                    {dica && <span className="hint">{dica}</span>}
+                    {q.opcoes.map((o) => (
+                      <label className="check" key={o}>
+                        {q.tipo === "unica"
+                          ? <input type="radio" name={q.id} checked={v === o} onChange={() => responder(q.id, o)} />
+                          : <input type="checkbox" checked={Array.isArray(v) && v.includes(o)} onChange={() => alternar(q, o)} />}
+                        <span>{o}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                );
+              const tipoInput = q.tipo === "data" ? "date" : q.tipo === "hora" ? "time" : q.tipo === "data_hora" ? "datetime-local" : "text";
+              return (
+                <div className="field" key={q.id}>
+                  <label htmlFor={`pq-${q.id}`}>{rotulo}</label>
+                  {q.tipo === "paragrafo"
+                    ? <textarea id={`pq-${q.id}`} rows={3} maxLength={1000} value={String(v ?? "")} onChange={(e) => responder(q.id, e.target.value)} />
+                    : <input id={`pq-${q.id}`} type={tipoInput} maxLength={200} value={String(v ?? "")} onChange={(e) => responder(q.id, e.target.value)} />}
+                  {dica && <span className="hint">{dica}</span>}
+                </div>
+              );
+            })}
           </>
         )}
 

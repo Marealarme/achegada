@@ -6,6 +6,7 @@ import { supabaseServico } from "@/lib/supabase";
 import { cifrar, criptoDisponivel } from "@/lib/cripto";
 import { cpfValido } from "@/lib/util";
 import { cidadeOficial } from "@/lib/municipios";
+import { normalizarPerguntas } from "@/lib/perguntas";
 
 const txt = (f: FormData, k: string, max = 2000) => String(f.get(k) ?? "").trim().slice(0, max);
 const SEM_PERMISSAO = "Só o dono ou a gerência podem alterar as configurações.";
@@ -123,4 +124,18 @@ export async function removerMembro(f: FormData) {
   if (!alvo) return;
   await db.auth.admin.deleteUser(id); // apaga o perfil junto (on delete cascade)
   revalidatePath("/painel/config");
+}
+
+/** Perguntas da pousada (check-in online). Recebe a lista em JSON da tela de configuração. */
+export async function salvarPerguntas(_: string, f: FormData): Promise<string> {
+  const s = await sessaoEquipe();
+  if (!podeConfigurar(s)) return SEM_PERMISSAO;
+  let bruto: unknown = [];
+  try { bruto = JSON.parse(String(f.get("perguntas") ?? "[]")); } catch { return "Não foi possível ler as perguntas. Tente de novo."; }
+  const lista = normalizarPerguntas(bruto);
+  const descartadas = (Array.isArray(bruto) ? bruto.length : 0) - lista.length;
+  const { error } = await supabaseServico().from("pousadas").update({ perguntas_extras: lista }).eq("id", s.pousada.id);
+  if (error) return /perguntas_extras/.test(error.message) ? "O banco ainda não tem as perguntas (migração 0016). Fale com o suporte." : "Não foi possível salvar. Tente de novo.";
+  revalidatePath("/painel/config");
+  return `Salvo: ${lista.length} pergunta(s).${descartadas > 0 ? ` ${descartadas} ficou(aram) de fora (sem texto, ou escolha com menos de 2 opções).` : ""}`;
 }

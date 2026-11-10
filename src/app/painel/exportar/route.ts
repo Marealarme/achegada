@@ -26,7 +26,7 @@ type Linha = {
   papel: string;
   hospedes: Hospede | null;
   reservas: {
-    titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
+    id: string; titular: string; telefone: string | null; check_in: string; check_out: string; origem: string | null;
     referencia_externa?: string | null; ota_referencia?: string | null; valor_total?: number | null; valor_pago?: number | null; descartada_em?: string | null;
     fnrh_status: string | null; fnrh_concluida: boolean; checkin_em: string | null; checkout_em: string | null; cancelada_em: string | null;
     unidades: { nome: string } | null; pre_chegadas: Pre[] | Pre | null;
@@ -101,7 +101,7 @@ export async function GET(req: Request) {
 
   const db = supabaseServico(); // a pousada já foi confirmada pela sessão; tudo filtrado por pousada_id
   const campos = (extra: string) =>
-    `papel, hospedes(id, nome, cpf, passaporte, data_nascimento, telefone, email, genero, nacionalidade, pais_residencia, cep, logradouro, numero, complemento, bairro, cidade, uf, consentimento_marketing_em), reservas!inner(titular, telefone, check_in, check_out, origem, fnrh_status, fnrh_concluida, checkin_em, checkout_em${extra}, unidades(nome), pre_chegadas(created_at, horario_chegada, placa, pet_tem, pet_nome, pet_especie, motivo_viagem, meio_transporte))`;
+    `papel, hospedes(id, nome, cpf, passaporte, data_nascimento, telefone, email, genero, nacionalidade, pais_residencia, cep, logradouro, numero, complemento, bairro, cidade, uf, consentimento_marketing_em), reservas!inner(id, titular, telefone, check_in, check_out, origem, fnrh_status, fnrh_concluida, checkin_em, checkout_em${extra}, unidades(nome), pre_chegadas(created_at, horario_chegada, placa, pet_tem, pet_nome, pet_especie, motivo_viagem, meio_transporte))`;
   const linhas: Linha[] = [];
   // tenta com as colunas mais novas primeiro (0011: valor; 0005: nº da reserva; 0007: cancelada)
   const extras = [", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago, descartada_em", ", cancelada_em, referencia_externa, ota_referencia, valor_total, valor_pago", ", cancelada_em, referencia_externa, ota_referencia", ", cancelada_em", ""];
@@ -116,6 +116,25 @@ export async function GET(req: Request) {
     const pagina = (resp.data ?? []) as unknown as Linha[];
     linhas.push(...pagina);
     if (pagina.length < 1000) break;
+  }
+
+  // respostas das perguntas da pousada (migração 0016): uma coluna por pergunta, só na linha do titular
+  const respostasPorReserva = new Map<string, Map<string, string>>();
+  const colunasPerguntas: string[] = [];
+  {
+    const rq = await db.from("pre_chegadas").select("reserva_id, respostas_extras").eq("pousada_id", s.pousada.id).not("respostas_extras", "is", null).limit(20000);
+    if (!rq.error)
+      for (const row of (rq.data ?? []) as { reserva_id: string; respostas_extras: unknown }[]) {
+        if (!Array.isArray(row.respostas_extras)) continue;
+        const m = new Map<string, string>();
+        for (const x of row.respostas_extras as { pergunta?: string; resposta?: string }[]) {
+          if (!x?.pergunta) continue;
+          const col = `Pergunta: ${x.pergunta}`;
+          if (!colunasPerguntas.includes(col)) colunasPerguntas.push(col);
+          m.set(col, String(x.resposta ?? ""));
+        }
+        respostasPorReserva.set(row.reserva_id, m);
+      }
   }
 
   const validas = linhas.filter((l) => l.hospedes && l.reservas && !l.reservas.descartada_em); // fichas de teste ficam de fora
@@ -200,6 +219,7 @@ export async function GET(req: Request) {
         "Check-in online feito em": dataHoraBr(pre?.created_at ?? null),
         "Chegada registrada na FNRH em": dataHoraBr(r.checkin_em),
         "Saída registrada na FNRH em": dataHoraBr(r.checkout_em),
+        ...Object.fromEntries(colunasPerguntas.map((c) => [c, titular ? respostasPorReserva.get(r.id)?.get(c) ?? "" : ""])),
       };
     }).sort((a, b) => b["Check-in"].split("/").reverse().join("").localeCompare(a["Check-in"].split("/").reverse().join("")) || a["Nome"].localeCompare(b["Nome"]));
 

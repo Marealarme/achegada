@@ -6,7 +6,9 @@ import Cabecalho from "../Cabecalho";
 import Form from "./Form";
 import CampoCidade from "../../CampoCidade";
 import BotaoAcao from "../BotaoAcao";
-import { adicionarChale, adicionarMembro, enviarLogo, removerChale, removerMembro, salvarDados, salvarFnrh } from "./actions";
+import { adicionarChale, adicionarMembro, enviarLogo, removerChale, removerMembro, salvarDados, salvarFnrh, salvarPerguntas } from "./actions";
+import Perguntas from "./Perguntas";
+import { normalizarPerguntas } from "@/lib/perguntas";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Configurações" };
@@ -49,6 +51,14 @@ export default async function Config() {
             <div className="field"><label htmlFor="termo_pet">Termo pet (uma linha por item; deixe vazio se não aceita pets)</label><textarea id="termo_pet" name="termo_pet" rows={3} defaultValue={v("termo_pet")} /></div>
             <div className="field"><label htmlFor="politica_cancelamento">Política de cancelamento (uma por linha)</label><textarea id="politica_cancelamento" name="politica_cancelamento" rows={3} defaultValue={v("politica_cancelamento")} /></div>
           </Form>
+        </section>
+
+        <section className="panel">
+          <h2>Perguntas da pousada</h2>
+          <p className="muted small">Perguntas extras que o hóspede responde no check-in online, depois dos dados de chegada. As respostas aparecem no card da reserva e no Excel de hóspedes.</p>
+          {p && "perguntas_extras" in p
+            ? <Perguntas iniciais={normalizarPerguntas(p.perguntas_extras)} action={salvarPerguntas} />
+            : <p className="muted small">Disponível depois da atualização do banco (migração 0016).</p>}
         </section>
 
         <section className="panel">
