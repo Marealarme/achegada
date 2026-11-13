@@ -1,5 +1,7 @@
 "use server";
 
+import { NOTAS_INCLUSAS } from "@/lib/assinatura";
+
 import { revalidatePath } from "next/cache";
 import { podeConfigurar, sessaoEquipe, temNotas } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
@@ -17,15 +19,15 @@ async function contexto() {
   const db = supabaseServico(); // notas só são gravadas pelo servidor; tudo filtrado pela pousada da sessão
   const { data } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const cfg = (data?.nfse_config ?? null) as (NfseConfig & { liberada?: boolean; webhookId?: string }) | null;
-  const chave = (await chaveDigisan(db, s.pousada.id))?.chave ?? null;
-  return { s, db, cfg, chave };
+  const k = await chaveDigisan(db, s.pousada.id);
+  return { s, db, cfg, chave: k?.chave ?? null, gateway: k?.origem === "gateway" };
 }
 
 export type ResultadoEmissao = { ok: boolean; mensagens: string[] };
 
 /** Emite as notas das reservas escolhidas (já confirmadas na tela). */
 export async function emitirNotas(reservaIds: string[]): Promise<ResultadoEmissao> {
-  const { s, db, cfg, chave } = await contexto();
+  const { s, db, cfg, chave, gateway } = await contexto();
   if (!chave || !cfg?.prestadorCnpj || !cfg.servico) return { ok: false, mensagens: ["A emissão ainda não está configurada (chave e serviço da Digisan)."] };
   const ids = [...new Set(reservaIds)].slice(0, LOTE_MAX);
   if (!ids.length) return { ok: false, mensagens: ["Nenhuma reserva escolhida."] };
@@ -37,12 +39,19 @@ export async function emitirNotas(reservaIds: string[]): Promise<ResultadoEmissa
       return { ok: false, mensagens: ["Fase de teste: só uma nota pode ser emitida até a primeira ser conferida e a emissão ser liberada."] };
   }
 
-  const limite = cfg.limiteMensal ?? 160;
-  const usadas = await notasNoPeriodo(db, s.pousada.id, cfg.cicloDia);
-  if (usadas + ids.length > limite) return { ok: false, mensagens: [`Limite do plano: ${usadas} de ${limite} notas já emitidas neste período.`] };
+  const usadas = await notasNoPeriodo(db, s.pousada.id, gateway ? undefined : cfg.cicloDia);
+  const avisos: string[] = [];
+  if (gateway) {
+    // notas inclusas no plano do A Chegada: passa do limite, emite e conta como excedente
+    const excedentes = Math.max(0, usadas + ids.length - NOTAS_INCLUSAS) - Math.max(0, usadas - NOTAS_INCLUSAS);
+    if (excedentes > 0) avisos.push(`Atenção: ${excedentes} nota(s) acima das ${NOTAS_INCLUSAS} inclusas no mês (R$ 0,90 cada, na próxima mensalidade).`);
+  } else {
+    const limite = cfg.limiteMensal ?? 160;
+    if (usadas + ids.length > limite) return { ok: false, mensagens: [`Limite do plano: ${usadas} de ${limite} notas já emitidas neste período.`] };
+  }
 
   const linhas = await linhasNotas(db, s.pousada.id, null, null, ids);
-  const mensagens: string[] = [];
+  const mensagens: string[] = [...avisos];
   let ok = 0;
   for (const l of linhas) {
     const r = await emitirReserva(db, s.pousada.id, cfg, chave, l, s.userId);

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ehAdmin, sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
 import Cabecalho from "../Cabecalho";
+import { NOTAS_INCLUSAS, VALOR_NOTA_EXCEDENTE } from "@/lib/assinatura";
 
 export const metadata: Metadata = { title: "Clientes" };
 export const dynamic = "force-dynamic";
@@ -38,10 +39,15 @@ export default async function Clientes() {
   const pousadas = (lista ?? []) as Pousada[];
   const ids = pousadas.map((p) => p.id);
 
-  const [{ data: perfis }, { data: reservas }] = await Promise.all([
+  const inicioMes = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 7) + "-01"; // mês corrente (Brasília)
+  const [{ data: perfis }, { data: reservas }, { data: notasMes }] = await Promise.all([
     db.from("perfis").select("user_id, pousada_id, nome, papel").in("pousada_id", ids.length ? ids : ["-"]),
     db.from("reservas").select("pousada_id, created_at, checkin_em").in("pousada_id", ids.length ? ids : ["-"]).limit(20000),
+    db.from("notas_fiscais").select("pousada_id").not("digisan_id", "is", null).neq("status", "rejeitada").gte("criada_em", inicioMes).limit(20000),
   ]);
+  const notas = new Map<string, number>();
+  for (const n of (notasMes ?? []) as { pousada_id: string }[]) notas.set(n.pousada_id, (notas.get(n.pousada_id) ?? 0) + 1);
+  const totalNotas = [...notas.values()].reduce((a, b) => a + b, 0);
   const donos = new Map<string, Perfil>();
   for (const pf of (perfis ?? []) as Perfil[]) if (pf.papel === "dono" && !donos.has(pf.pousada_id)) donos.set(pf.pousada_id, pf);
   const emails = new Map<string, string>();
@@ -62,6 +68,7 @@ export default async function Clientes() {
     ["Cadastradas", pousadas.length],
     ["Em teste", conta((p) => p.assinatura_status === "trialing")],
     ["Pagando", conta((p) => p.assinatura_status === "active")],
+    ["Notas no mês (todas)", totalNotas],
     ["Sem cartão", conta((p) => !["isenta", "trialing", "active", "past_due", "canceled", "unpaid", "incomplete_expired"].includes(p.assinatura_status))],
   ] as const;
 
@@ -104,6 +111,9 @@ export default async function Clientes() {
                     </div>
                     <div className="muted small">
                       Uso: {u.reservas} reserva(s) · {u.checkins} check-in(s){u.ultima ? ` · última reserva criada em ${dataBR(u.ultima)}` : ""}
+                      {" · "}notas no mês: {notas.get(p.id) ?? 0}
+                      {(notas.get(p.id) ?? 0) > NOTAS_INCLUSAS && p.assinatura_status !== "isenta"
+                        ? ` (excedente ${(notas.get(p.id) ?? 0) - NOTAS_INCLUSAS} = ${(((notas.get(p.id) ?? 0) - NOTAS_INCLUSAS) * VALOR_NOTA_EXCEDENTE).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })})` : ""}
                     </div>
                   </div>
                 </li>

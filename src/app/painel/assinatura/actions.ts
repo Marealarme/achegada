@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sessaoEquipe } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase";
-import { alterarAdicionalNotas, criarCheckout, PLANOS, portalCliente, stripeLigado, type Plano } from "@/lib/assinatura";
+import { alterarAdicionalNotas, criarCheckout, planoDisponivel, portalCliente, stripeLigado } from "@/lib/assinatura";
 import { revalidatePath } from "next/cache";
 
 async function base() {
@@ -15,13 +15,13 @@ async function base() {
 export async function assinar(form: FormData) {
   const s = await sessaoEquipe();
   if (s.perfil.papel !== "dono" || !stripeLigado()) redirect("/painel/assinatura");
-  const plano = String(form.get("plano") ?? "") as Plano;
-  if (!(plano in PLANOS)) redirect("/painel/assinatura");
+  void form;
+  const plano = await planoDisponivel(); // nunca confia no plano vindo da tela
   const { data: p } = await supabaseServico().from("pousadas").select("stripe_customer_id, stripe_subscription_id, teste_ate").eq("id", s.pousada.id).single();
   let url: string;
   try {
     url = await criarCheckout({
-      pousadaId: s.pousada.id, nomePousada: s.pousada.nome, email: s.email, plano, notas: form.get("notas") === "on", base: await base(),
+      pousadaId: s.pousada.id, nomePousada: s.pousada.nome, email: s.email, plano, notas: false, base: await base(),
       jaTeveTeste: !!(p?.stripe_subscription_id || p?.teste_ate), customerId: p?.stripe_customer_id ?? null,
     });
   } catch (e) {

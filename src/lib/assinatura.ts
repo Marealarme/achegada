@@ -5,9 +5,15 @@ import { supabaseServico } from "@/lib/supabase";
 // Assinatura das pousadas via Stripe. O cartão fica guardado no Stripe (nunca no nosso banco).
 // Variáveis da Vercel: STRIPE_SECRET_KEY (sk_live_… ou sk_test_…) e STRIPE_WEBHOOK_SECRET (whsec_…).
 
+// Preço de fundador (decisão do Marcello, 13/11/2026): R$ 99/mês para as 10 primeiras pousadas, travado por 12 meses;
+// depois, Completo a R$ 149/mês. Os dois incluem até 50 notas fiscais por mês, emitidas pela conta Gateway da Digisan.
 export const PLANOS = {
-  unico: { nome: "A Chegada", descricao: "Qualquer número de chalés/quartos", valor: 9900 },
+  fundador: { nome: "Fundador", descricao: "Preço de lançamento, travado por 12 meses · até 50 notas fiscais/mês inclusas", valor: 9900 },
+  completo: { nome: "Completo", descricao: "Qualquer tamanho de pousada · até 50 notas fiscais/mês inclusas", valor: 14900 },
 } as const;
+export const VAGAS_FUNDADOR = 10;
+export const NOTAS_INCLUSAS = 50;
+export const VALOR_NOTA_EXCEDENTE = 0.9;
 export type Plano = keyof typeof PLANOS;
 /** Adicional: notas fiscais automáticas (NFS-e pela Digisan da pousada). Mesmo valor em qualquer plano. */
 export const ADICIONAL_NOTAS = { nome: "Notas fiscais automáticas", valor: 4900, lookup: "achegada_notas_mensal" } as const;
@@ -21,8 +27,20 @@ export function stripe() {
   return cliente;
 }
 
-export function planoPorUnidades(_n?: number | null): Plano {
-  return "unico"; // preço único, independente do número de chalés/quartos
+const ATIVAS = ["trialing", "active", "past_due", "unpaid", "paused"];
+/** Quantas vagas de fundador ainda restam (pousadas com assinatura viva no plano Fundador contam). */
+export async function vagasFundador(): Promise<number> {
+  try {
+    const { count, error } = await supabaseServico().from("pousadas").select("id", { count: "exact", head: true }).eq("plano", "fundador").in("assinatura_status", ATIVAS);
+    if (error) return 0; // na dúvida, não promete vaga
+    return Math.max(0, VAGAS_FUNDADOR - (count ?? 0));
+  } catch {
+    return 0; // sem banco (ex.: montagem local): não promete vaga
+  }
+}
+/** Plano que uma nova assinatura recebe agora: Fundador enquanto houver vaga, depois Completo. Decidido no servidor. */
+export async function planoDisponivel(): Promise<Plano> {
+  return (await vagasFundador()) > 0 ? "fundador" : "completo";
 }
 export const reais = (centavos: number) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
