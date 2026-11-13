@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { sessaoEquipe } from "@/lib/sessao";
-import { DIAS_TESTE, PLANOS, planoPorUnidades, reais, stripeLigado, type Plano } from "@/lib/assinatura";
+import { DIAS_TESTE, NOTAS_INCLUSAS, PLANOS, VAGAS_FUNDADOR, planoDisponivel, reais, stripeLigado, vagasFundador } from "@/lib/assinatura";
 import Cabecalho from "../Cabecalho";
 import BotaoAcao from "../BotaoAcao";
 import { assinar, gerenciar } from "./actions";
@@ -27,7 +27,7 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
   const q = await searchParams;
   const s = await sessaoEquipe();
   const st = s.pousada.assinatura_status;
-  const sugerido: Plano = (s.pousada.plano as Plano) || planoPorUnidades(s.pousada.qtd_unidades);
+  const [plano, vagas] = await Promise.all([planoDisponivel(), vagasFundador()]);
   const temAssinatura = ["trialing", "active", "past_due", "unpaid", "paused"].includes(st);
 
   return (
@@ -54,8 +54,8 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
           <>
             <div className="nf-pacote">
               <div>
-                <b>Notas fiscais automáticas</b> · incluídas no plano <span className="pill ok">sem custo extra</span>
-                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, pela conta da Digisan da pousada. A pousada contrata a Digisan diretamente com eles (a partir de R$ 70/mês no anual ou R$ 100/mês no mensal) e precisa do certificado digital A1. O A Chegada não cobra nada a mais por isso.</div>
+                <b>Notas fiscais automáticas</b> · até {NOTAS_INCLUSAS} por mês incluídas no plano <span className="pill ok">sem contratar emissor</span>
+                <div className="muted small">Emite as notas fiscais (NFS-e) das reservas direto do painel, no CNPJ da sua pousada. Basta cadastrar o certificado digital A1 em Notas fiscais → Configurar.</div>
               </div>
             </div>
             <form action={gerenciar}><BotaoAcao className="btn primary" aguardando="Abrindo…">Trocar cartão, ver faturas ou cancelar</BotaoAcao></form>
@@ -63,15 +63,12 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
         ) : (
           <>
             <div className="planos">
-              {(Object.keys(PLANOS) as Plano[]).map((k) => (
-                <form key={k} action={assinar} className={k === sugerido ? "plano seu" : "plano"}>
-                  <input type="hidden" name="plano" value={k} />
-                  <span className="label">{PLANOS[k].nome}</span>
-                  <strong>{reais(PLANOS[k].valor)}<span className="muted small">/mês</span></strong>
-                  <span className="muted small">{PLANOS[k].descricao}</span>
-                  <BotaoAcao className={k === sugerido ? "btn primary" : "btn"} aguardando="Abrindo pagamento…">Começar {DIAS_TESTE} dias grátis</BotaoAcao>
-                </form>
-              ))}
+              <form action={assinar} className="plano seu">
+                <span className="label">{PLANOS[plano].nome}{plano === "fundador" ? ` · restam ${vagas} de ${VAGAS_FUNDADOR} vagas` : ""}</span>
+                <strong>{reais(PLANOS[plano].valor)}<span className="muted small">/mês</span></strong>
+                <span className="muted small">{PLANOS[plano].descricao}</span>
+                <BotaoAcao className="btn primary" aguardando="Abrindo pagamento…">Começar {DIAS_TESTE} dias grátis</BotaoAcao>
+              </form>
             </div>
             <p className="muted small">O cartão é cadastrado na página segura do Stripe; a pousada não vê nem guarda o número. Cancele quando quiser, sem multa.</p>
           </>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PLANOS, reais, type Plano } from "@/lib/assinatura";
+import { NOTAS_INCLUSAS, PLANOS, VAGAS_FUNDADOR, reais, vagasFundador } from "@/lib/assinatura";
+
+export const revalidate = 300; // vagas de fundador atualizadas a cada 5 minutos
 import SeloInn from "./SeloInn";
 import Marca from "./Marca";
 
@@ -59,14 +61,16 @@ const FAQ = [
   { q: "O que a pousada precisa para ligar a FNRH?", r: "Estar no Cadastur e gerar, uma única vez, a chave da API no sistema da FNRH com o gov.br do responsável. Leva uns 5 minutos e o painel mostra o passo a passo com os links do governo. Se precisar, a gente ajuda pelo WhatsApp." },
   { q: "Preciso trocar o meu sistema de reservas?", r: "Não. O A Chegada trabalha ao lado do seu sistema: você sobe a lista de reservas exportada (Hotel Link, HBook, Omnibees, Cloudbeds ou qualquer planilha) e segue usando o que já usa. Na primeira vez você diz em qual coluna está cada informação; depois ele reconhece sozinho." },
   { q: "E a LGPD?", r: "A pousada é a controladora dos dados e o A Chegada é o operador. Os dados ficam em servidores no Brasil, isolados por pousada, e senhas e chaves são criptografadas." },
-  { q: "O A Chegada emite nota fiscal dos hóspedes?", r: "Sim, sem custo extra: a emissão de notas fiscais está incluída em todos os planos. O painel junta os dados da reserva e da ficha (CPF, endereço, valor) e emite a NFS-e pela conta da sua pousada na Digisan, que atende a maioria das prefeituras. Você emite primeiro uma nota e confere o PDF antes de liberar as demais." },
-  { q: "Preciso contratar a Digisan?", r: "Sim. O A Chegada automatiza a emissão sem cobrar nada a mais, mas a Digisan é o emissor oficial e é contratada diretamente com eles, no CNPJ da sua pousada: o contrato e o pagamento são entre a pousada e a Digisan (planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal). Também é preciso o certificado digital A1 (e-CNPJ) da pousada, cadastrado na Digisan." },
+  { q: "O A Chegada emite nota fiscal dos hóspedes?", r: `Sim, e já está incluído: até ${NOTAS_INCLUSAS} notas fiscais por mês, no CNPJ da sua pousada. O painel junta os dados da reserva e da ficha (CPF, endereço, valor) e emite a NFS-e pelo emissor oficial integrado (Digisan), que atende a maioria das prefeituras. Você emite primeiro uma nota e confere o PDF antes de liberar as demais. Passou de ${NOTAS_INCLUSAS} no mês? Cada nota a mais custa R$ 0,90.` },
+  { q: "Preciso contratar um emissor de notas?", r: "Não. O emissor já vem integrado no A Chegada. Você só precisa do certificado digital A1 (e-CNPJ) da pousada, que cadastra uma vez no painel, e dos códigos do serviço de hospedagem que o seu contador informa." },
   { q: "Tem fidelidade?", r: "Não. São 30 dias grátis e depois mensalidade no cartão. Cancele quando quiser, pelo próprio painel." },
-  { q: "O preço muda com o número de chalés ou quartos?", r: "Não. É o mesmo valor mensal para qualquer tamanho de pousada, com check-in ilimitado e notas fiscais automáticas inclusas." },
+  { q: "O preço muda com o número de chalés ou quartos?", r: "Não. É o mesmo valor mensal para qualquer tamanho de pousada, com check-in ilimitado e notas fiscais inclusas." },
+  { q: "O que é o preço de fundador?", r: `As ${VAGAS_FUNDADOR} primeiras pousadas pagam R$ 99/mês, travado por 12 meses. Depois que as vagas acabam, o plano passa a R$ 149/mês.` },
 ];
 
 
-export default function Inicio() {
+export default async function Inicio() {
+  const vagas = await vagasFundador();
   return (
     <main className="lp">
       <header className="lp-top">
@@ -150,25 +154,30 @@ export default function Inicio() {
 
       <section className="lp-sec" id="planos">
         <span className="label">Planos</span>
-        <h2>Um preço só, qualquer tamanho de pousada. 30 dias grátis.</h2>
+        <h2>{vagas > 0 ? "Preço de fundador para as primeiras pousadas. 30 dias grátis." : "Um preço só, qualquer tamanho de pousada. 30 dias grátis."}</h2>
         <div className="planos">
-          {(Object.keys(PLANOS) as Plano[]).map((k) => (
-            <div key={k} className={"plano seu"}>
-              <span className="label">{PLANOS[k].nome}</span>
-              <strong>{reais(PLANOS[k].valor)}<span className="muted small">/mês</span></strong>
-              <span className="muted small">{PLANOS[k].descricao}</span>
+          {vagas > 0 && (
+            <div className="plano seu">
+              <span className="label">{PLANOS.fundador.nome} · restam {vagas} de {VAGAS_FUNDADOR} vagas</span>
+              <strong>{reais(PLANOS.fundador.valor)}<span className="muted small">/mês</span></strong>
+              <span className="muted small">{PLANOS.fundador.descricao}</span>
             </div>
-          ))}
+          )}
+          <div className={vagas > 0 ? "plano" : "plano seu"}>
+            <span className="label">{PLANOS.completo.nome}{vagas > 0 ? " · depois das vagas de fundador" : ""}</span>
+            <strong>{reais(PLANOS.completo.valor)}<span className="muted small">/mês</span></strong>
+            <span className="muted small">{PLANOS.completo.descricao}</span>
+          </div>
         </div>
         <div className="nf-pacote">
           <div>
-            <div className="label">Incluído em todos os planos</div>
-            <b>Notas fiscais automáticas</b> · sem custo extra no A Chegada
+            <div className="label">Incluído no plano</div>
+            <b>Até {NOTAS_INCLUSAS} notas fiscais por mês</b> · sem contratar emissor
             <div className="muted small">Emite a nota fiscal de serviço (NFS-e) de cada reserva direto do painel: um clique por reserva ou todas do mês de uma vez, com conferência antes de emitir, PDF de cada nota e o pacote do mês pronto para a contabilidade. As notas saem no CNPJ da sua pousada.</div>
-            <div className="muted small"><b>Requer conta própria na Digisan</b> (emissor oficial de notas), contratada e paga diretamente a eles: planos a partir de R$ 70/mês no anual ou R$ 100/mês no mensal. Requer também o certificado digital A1 (e-CNPJ) da pousada.</div>
+            <div className="muted small">Requer o certificado digital A1 (e-CNPJ) da pousada. Nota além das {NOTAS_INCLUSAS} do mês: R$ 0,90 cada.</div>
           </div>
         </div>
-        <p className="muted small">Todos incluem check-in ilimitado, FNRH automática, notas fiscais automáticas, importação de reservas, logo da pousada e vários acessos da equipe. Sem fidelidade: cancela pelo próprio painel.</p>
+        <p className="muted small">Inclui check-in ilimitado, FNRH automática, até 50 notas fiscais por mês, perguntas da pousada, importação de reservas, logo da pousada e vários acessos da equipe. Sem fidelidade: cancela pelo próprio painel.</p>
       </section>
 
       <section className="lp-sec">

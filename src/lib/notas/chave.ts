@@ -7,15 +7,18 @@ import { decifrar } from "@/lib/cripto";
 // Compatibilidade: a pousada-piloto (slug FNRH_POUSADA_PILOTO, padrão "lua") pode usar a variável DIGISAN_API_KEY
 // enquanto não cadastrar a chave pela tela. Nenhuma outra pousada usa essa variável.
 
-export type ChaveDigisan = { chave: string; origem: "pousada" | "servidor" };
+export type ChaveDigisan = { chave: string; origem: "pousada" | "servidor" | "gateway" };
 
 export async function chaveDigisan(db: SupabaseClient, pousadaId: string): Promise<ChaveDigisan | null> {
   const { data: seg } = await db.from("pousada_segredos").select("digisan_chave_cripto").eq("pousada_id", pousadaId).maybeSingle();
   const propria = decifrar((seg as { digisan_chave_cripto?: string | null } | null)?.digisan_chave_cripto);
   if (propria) return { chave: propria, origem: "pousada" };
-  if (!process.env.DIGISAN_API_KEY) return null;
   const { data: p } = await db.from("pousadas").select("slug").eq("id", pousadaId).maybeSingle();
-  return p?.slug === (process.env.FNRH_POUSADA_PILOTO ?? "lua") ? { chave: process.env.DIGISAN_API_KEY, origem: "servidor" } : null;
+  if (process.env.DIGISAN_API_KEY && p?.slug === (process.env.FNRH_POUSADA_PILOTO ?? "lua")) return { chave: process.env.DIGISAN_API_KEY, origem: "servidor" };
+  // Conta Gateway da Inn Experts (notas inclusas no plano): vale para toda pousada sem chave própria.
+  // Variável DIGISAN_GATEWAY_KEY na Vercel; sem ela, nada muda.
+  if (process.env.DIGISAN_GATEWAY_KEY) return { chave: process.env.DIGISAN_GATEWAY_KEY, origem: "gateway" };
+  return null;
 }
 
 /** Endereço do aviso automático (webhook) da pousada. */
