@@ -157,3 +157,40 @@ export function mensagemErro(r: RespostaDigisan): string {
   const lista = Array.isArray(c.erros) ? (c.erros as unknown[]).map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join("; ") : "";
   return String(m ?? lista ?? `Erro ${r.status} na Digisan`).slice(0, 500) || `Erro ${r.status} na Digisan`;
 }
+
+// ---------- Empresas (só conta Gateway): cadastro do emitente e certificado A1 ----------
+/** Dados do emitente/prestador no formato da Digisan (POST /empresa e PUT /empresa/{cnpj}). */
+export type EmpresaDigisan = {
+  cnpj: string; razaoSocial: string; email: string; telefone: string; cnaePrincipal: string;
+  inscricaoEstadual: string; inscricaoMunicipal: string; optanteSimples: boolean; mei: boolean;
+  codigoRegimeTributario: string; codigoRegimeTributarioEspecial: string;
+  endereco: { uf: string; codigoMunicipioIbge: string; municipio: string; logradouro: string; complemento: string; numero: string; bairro: string; cep: string };
+  loginPrefeitura?: string; senhaPrefeitura?: string;
+};
+export const obterEmpresa = (chave: string, cnpj: string) => chamar(chave, `/empresa/${cnpj}`);
+/** Cadastra o emitente; se o CNPJ já existe na conta, atualiza. */
+export async function salvarEmpresa(chave: string, e: EmpresaDigisan): Promise<RespostaDigisan> {
+  // a documentação grafa "incetivoFiscal" no pedido e "incentivoFiscal" na resposta: manda os dois
+  const corpo = JSON.stringify({ ...e, incentivoCultural: false, incetivoFiscal: false, incentivoFiscal: false });
+  const existe = await obterEmpresa(chave, e.cnpj);
+  return existe.ok
+    ? chamar(chave, `/empresa/${e.cnpj}`, { method: "PUT", body: corpo })
+    : chamar(chave, "/empresa", { method: "POST", body: corpo });
+}
+/** Envia o certificado A1 (.pfx) do emitente. O arquivo e a senha só passam por aqui: não são guardados no A Chegada. */
+export async function enviarCertificado(chave: string, cnpj: string, arquivo: Blob, nome: string, senha: string): Promise<RespostaDigisan> {
+  const form = new FormData();
+  form.append("certificado", arquivo, nome);
+  form.append("senha", senha);
+  try {
+    const r = await fetch(`${BASE}/empresa/${cnpj}/certificado-digital`, {
+      method: "POST", headers: { "x-api-key": chave, Accept: "application/json" }, body: form, signal: AbortSignal.timeout(30_000), cache: "no-store",
+    });
+    const texto = await r.text();
+    let corpo: Record<string, unknown> | null = null;
+    try { corpo = texto ? JSON.parse(texto) : null; } catch { corpo = { mensagem: texto.slice(0, 300) }; }
+    return { ok: r.ok, status: r.status, corpo };
+  } catch (e) {
+    return { ok: false, status: 0, corpo: null, erro: e instanceof Error && e.name === "TimeoutError" ? "A Digisan demorou para responder." : "Não foi possível falar com a Digisan." };
+  }
+}
