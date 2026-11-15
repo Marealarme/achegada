@@ -19,6 +19,7 @@ type Reserva = {
   id: string; titular: string; telefone: string | null; check_in: string; check_out: string;
   adultos: number; criancas: number; token: string; fnrh_concluida: boolean; link_enviado_em?: string | null;
   fnrh_status?: string; fnrh_erro?: string | null; fnrh_reserva_id?: string | null; checkin_em?: string | null; checkout_em?: string | null;
+  origem?: string | null;
   unidades: { nome: string } | null;
   pre_chegadas: { horario_chegada: string | null; placa: string | null; pet_tem: boolean; pet_nome: string | null; pet_especie: string | null; pet_porte: string | null; late_checkout: boolean }[] | { horario_chegada: string | null } | null;
   hospedes_reserva: { papel: string; hospedes: { nome: string; cpf: string | null; passaporte?: string | null; consentimento_marketing_em: string | null } | null }[];
@@ -62,7 +63,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const q = db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
     return semCanceladas ? q.is("cancelada_em", null).is("descartada_em", null) : q;
   };
-  const COMPLETO = `${CAMPOS}, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
+  const COMPLETO = `${CAMPOS}, origem, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
   const [comFiltro, { data: unidades }] = await Promise.all([
     buscar(COMPLETO, true),
     db.from("unidades").select("id, nome").order("nome"),
@@ -106,8 +107,10 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   // fila de envio: reservas em "Link a enviar" que chegam nos próximos 7 dias (link mandado cedo demais o hóspede esquece)
   const limiteFila = new Date(Date.parse(`${hoje}T12:00:00Z`) + 7 * 86400e3).toISOString().slice(0, 10);
   const aEnviar = reservas.filter((r) => status(r).txt === "Link a enviar" && r.check_in <= limiteFila);
-  const fila: ItemFila[] = aEnviar.filter((r) => (r.telefone ?? "").replace(/\D/g, "").length >= 10).map((r) => ({
-    id: r.id, titular: r.titular, unidade: r.unidades?.nome ?? "Sem chalé", chegada: dataCurta(r.check_in), telefone: r.telefone ?? "",
+  // quem não tem WhatsApp no card também entra: a mensagem é copiada para colar no chat do Booking/Airbnb
+  const fila: ItemFila[] = aEnviar.map((r) => ({
+    id: r.id, titular: r.titular, unidade: r.unidades?.nome ?? "Sem chalé", chegada: dataCurta(r.check_in),
+    telefone: (r.telefone ?? "").replace(/\D/g, "").length >= 10 ? r.telefone ?? "" : "", canal: r.origem ?? "",
     mensagem: mensagemWhatsApp({ titular: r.titular, unidade: r.unidades?.nome ?? "seu chalé", check_in: r.check_in, check_out: r.check_out, link: `${base}/c/${r.token}` }, pousadaNome),
   }));
   const feitas = reservas.filter((r) => r.pre).length;
@@ -228,7 +231,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
       )}
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} semTelefone={aEnviar.length - fila.length} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas porEmail={porEmail} /><NovaReserva unidades={unidades ?? []} /></div></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas porEmail={porEmail} /><NovaReserva unidades={unidades ?? []} /></div></div>
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar reservas” para subir a planilha com as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (

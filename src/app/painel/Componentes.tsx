@@ -49,20 +49,22 @@ function linkWhatsApp(telefone: string | null, mensagem: string) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
 }
 
-export type ItemFila = { id: string; titular: string; unidade: string; chegada: string; telefone: string; mensagem: string };
+export type ItemFila = { id: string; titular: string; unidade: string; chegada: string; telefone: string; canal: string; mensagem: string };
 
 /** Modo fila: envia os links de check-in um atrás do outro. Cada envio continua sendo um clique da recepção
  *  (nada de disparo automático), para o número da pousada não ser visto como spam pelo WhatsApp. */
-export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTelefone: number }) {
+export function FilaWhatsApp({ itens }: { itens: ItemFila[] }) {
   const [aberto, setAberto] = useState(false);
   const [pos, setPos] = useState(0);
   const [enviados, setEnviados] = useState(0);
   // A lista é congelada ao abrir a fila: cada envio atualiza o painel e tira o hóspede da lista recebida,
   // e sem esta cópia o próximo da fila era pulado (enviava só metade).
   const [lista, setLista] = useState<ItemFila[]>([]);
+  const [copiado, setCopiado] = useState(false);
+  const semFone = itens.filter((i) => !i.telefone).length;
   if (!aberto && !itens.length) return null;
   if (!aberto)
-    return <button className="btn" type="button" onClick={() => { setLista(itens); setPos(0); setEnviados(0); setAberto(true); }}>Enviar links em fila · próximos 7 dias ({itens.length})</button>;
+    return <button className="btn" type="button" onClick={() => { setLista(itens); setPos(0); setEnviados(0); setCopiado(false); setAberto(true); }}>Enviar links em fila · próximos 7 dias ({itens.length})</button>;
   const atual = lista[pos];
   const proximo = () => setPos((p) => p + 1);
   return (
@@ -72,16 +74,29 @@ export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTel
           <span className="label">{pos + 1} de {lista.length} · {enviados} enviado(s)</span>
           <div>
             <b>{atual.titular}</b>
-            <div className="muted small">{atual.unidade} · chega {atual.chegada} · <span className="mono">{atual.telefone}</span></div>
+            <div className="muted small">{atual.unidade} · chega {atual.chegada}{atual.telefone ? <> · <span className="mono">{atual.telefone}</span></> : atual.canal ? ` · ${atual.canal}` : ""}</div>
+            {!atual.telefone && <div className="small">Sem WhatsApp no card: copie a mensagem e cole no chat {/booking|airbnb|expedia/i.test(atual.canal) ? `do ${atual.canal}` : "que você usa com este hóspede"}{copiado ? " (mensagem copiada)" : ""}.</div>}
           </div>
           <div className="msg">{atual.mensagem}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn" type="button" onClick={() => setAberto(false)}>Fechar</button>
-            <button className="btn" type="button" onClick={proximo}>Pular</button>
-            <a className="btn primary" style={{ flex: 1, textAlign: "center" }} href={linkWhatsApp(atual.telefone, atual.mensagem)} target="_blank" rel="noopener noreferrer"
-              onClick={() => { marcarLinkEnviado(atual.id).catch(() => {}); setEnviados((n) => n + 1); proximo(); }}>
-              Abrir WhatsApp e ir para o próximo
-            </a>
+            <button className="btn" type="button" onClick={() => { setCopiado(false); proximo(); }}>Pular</button>
+            {atual.telefone ? (
+              <a className="btn primary" style={{ flex: 1, textAlign: "center" }} href={linkWhatsApp(atual.telefone, atual.mensagem)} target="_blank" rel="noopener noreferrer"
+                onClick={() => { marcarLinkEnviado(atual.id).catch(() => {}); setEnviados((n) => n + 1); proximo(); }}>
+                Abrir WhatsApp e ir para o próximo
+              </a>
+            ) : copiado ? (
+              <button className="btn primary" style={{ flex: 1 }} type="button"
+                onClick={() => { marcarLinkEnviado(atual.id).catch(() => {}); setEnviados((n) => n + 1); setCopiado(false); proximo(); }}>
+                Já colei no chat: ir para o próximo
+              </button>
+            ) : (
+              <button className="btn primary" style={{ flex: 1 }} type="button"
+                onClick={async () => { try { await navigator.clipboard.writeText(atual.mensagem); setCopiado(true); } catch { setCopiado(true); } }}>
+                Copiar mensagem
+              </button>
+            )}
           </div>
           <span className="hint">Envie no WhatsApp e volte para esta tela: o próximo hóspede já estará pronto. Em dias de muito volume, divida em blocos (ex.: 20 de manhã e 20 à tarde).</span>
         </>
@@ -91,7 +106,7 @@ export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTel
           <button className="btn" type="button" onClick={() => { setAberto(false); window.location.reload(); }}>Fechar e atualizar</button>
         </>
       )}
-      {semTelefone > 0 && <span className="hint">{semTelefone} reserva(s) sem WhatsApp cadastrado ficaram fora da fila.</span>}
+      {semFone > 0 && <span className="hint">{semFone} hóspede(s) sem WhatsApp no card: para eles a fila copia a mensagem para colar no chat do Booking/Airbnb.</span>}
     </div>
   );
 }
