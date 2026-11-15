@@ -103,8 +103,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
 
   const h = await headers();
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? `https://${h.get("host")}`;
-  // fila de envio: reservas que ainda estão em "Link a enviar"
-  const aEnviar = reservas.filter((r) => status(r).txt === "Link a enviar");
+  // fila de envio: reservas em "Link a enviar" que chegam nos próximos 7 dias (link mandado cedo demais o hóspede esquece)
+  const limiteFila = new Date(Date.parse(`${hoje}T12:00:00Z`) + 7 * 86400e3).toISOString().slice(0, 10);
+  const aEnviar = reservas.filter((r) => status(r).txt === "Link a enviar" && r.check_in <= limiteFila);
   const fila: ItemFila[] = aEnviar.filter((r) => (r.telefone ?? "").replace(/\D/g, "").length >= 10).map((r) => ({
     id: r.id, titular: r.titular, unidade: r.unidades?.nome ?? "Sem chalé", chegada: dataCurta(r.check_in), telefone: r.telefone ?? "",
     mensagem: mensagemWhatsApp({ titular: r.titular, unidade: r.unidades?.nome ?? "seu chalé", check_in: r.check_in, check_out: r.check_out, link: `${base}/c/${r.token}` }, pousadaNome),

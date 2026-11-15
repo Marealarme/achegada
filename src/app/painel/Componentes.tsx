@@ -57,16 +57,19 @@ export function FilaWhatsApp({ itens, semTelefone }: { itens: ItemFila[]; semTel
   const [aberto, setAberto] = useState(false);
   const [pos, setPos] = useState(0);
   const [enviados, setEnviados] = useState(0);
-  if (!itens.length) return null;
+  // A lista é congelada ao abrir a fila: cada envio atualiza o painel e tira o hóspede da lista recebida,
+  // e sem esta cópia o próximo da fila era pulado (enviava só metade).
+  const [lista, setLista] = useState<ItemFila[]>([]);
+  if (!aberto && !itens.length) return null;
   if (!aberto)
-    return <button className="btn" type="button" onClick={() => { setPos(0); setEnviados(0); setAberto(true); }}>Enviar links em fila ({itens.length})</button>;
-  const atual = itens[pos];
+    return <button className="btn" type="button" onClick={() => { setLista(itens); setPos(0); setEnviados(0); setAberto(true); }}>Enviar links em fila · próximos 7 dias ({itens.length})</button>;
+  const atual = lista[pos];
   const proximo = () => setPos((p) => p + 1);
   return (
     <div className="newform" style={{ width: "100%" }}>
       {atual ? (
         <>
-          <span className="label">{pos + 1} de {itens.length} · {enviados} enviado(s)</span>
+          <span className="label">{pos + 1} de {lista.length} · {enviados} enviado(s)</span>
           <div>
             <b>{atual.titular}</b>
             <div className="muted small">{atual.unidade} · chega {atual.chegada} · <span className="mono">{atual.telefone}</span></div>
