@@ -109,15 +109,26 @@ async function reservaDaEquipe(id: string) {
 }
 
 export async function reenviarFnrh(form: FormData) {
-  const { reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
-  if (reserva) await processarEnvio(reserva.id);
+  const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
+  if (reserva) {
+    const { data } = await db.from("reservas").select("checkin_em").eq("id", reserva.id).maybeSingle();
+    await processarEnvio(reserva.id, data?.checkin_em ? new Date(data.checkin_em) : undefined);
+  }
   revalidatePath("/painel");
 }
 
 export async function registrarChegada(form: FormData) {
   const { db, reserva } = await reservaDaEquipe(String(form.get("id") ?? ""));
-  if (!reserva?.fnrh_reserva_id) return;
+  if (!reserva) return;
   const agora = new Date();
+  if (!reserva.fnrh_reserva_id) {
+    // ficha ainda não foi ao governo: vai agora, completa, já com o check-in
+    const envio = await processarEnvio(reserva.id, agora);
+    // sem ficha na fila (hóspede ainda não preencheu ou integração desligada): guarda a chegada; a ficha vai completa quando ele preencher
+    if (!envio.ok && /Não há ficha pendente|não configurada/.test(envio.erro ?? "")) await db.from("reservas").update({ checkin_em: agora.toISOString() }).eq("id", reserva.id);
+    revalidatePath("/painel");
+    return;
+  }
   try {
     await checkinReserva(reserva.pousada_id, reserva.fnrh_reserva_id, agora);
     await db.from("reservas").update({ checkin_em: agora.toISOString(), fnrh_erro: null }).eq("id", reserva.id);

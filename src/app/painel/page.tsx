@@ -184,8 +184,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                 <p>Fichas confirmadas no gov.br.</p>
               ) : integracao ? (
                 <>
-                  <p className="muted small">{atual.fnrh_erro ?? "A ficha ainda não foi enviada ao governo."}</p>
-                  <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao aguardando="Enviando ao governo… (até 30s)">Enviar ficha agora</BotaoAcao></form>
+                  <p>Ficha pronta. Ela vai ao governo <b>completa</b> quando você clicar em <b>Hóspede chegou</b>.</p>
+                  {atual.fnrh_erro && <p className="muted small">{atual.fnrh_erro}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <form action={registrarChegada}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn primary" aguardando="Registrando no governo… (até 30s)">Hóspede chegou</BotaoAcao></form>
+                    <form action={reenviarFnrh}><input type="hidden" name="id" value={atual.id} /><BotaoAcao className="btn ghost" aguardando="Enviando ao governo… (até 30s)">Enviar agora sem a chegada</BotaoAcao></form>
+                  </div>
+                  <p className="muted small">Se ninguém marcar a chegada, o app envia sozinho às 23h30 do dia da chegada, como pré-check-in (sem motivo da viagem e transporte, que o governo só aceita com o check-in feito).</p>
                 </>
               ) : (
                 <>

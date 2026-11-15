@@ -191,6 +191,12 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   });
   const { error: errFila } = await db.from("fnrh_envios").upsert({ reserva_id: reserva.id, pousada_id: reserva.pousada_id, payload, ultimo_erro: null });
   if (errFila) return { ok: true, fichaEnviada: false }; // o check-in foi salvo; a recepção reenvia pelo painel
-  const envio = await processarEnvio(reserva.id);
-  return { ok: true, fichaEnviada: envio.ok };
+  // A ficha fica guardada e vai ao governo COMPLETA quando a recepção marca "Hóspede chegou"
+  // (o governo só aceita motivo/transporte com check-in feito). Se a chegada já foi marcada, vai agora.
+  const { data: chegou } = await db.from("reservas").select("checkin_em").eq("id", reserva.id).maybeSingle();
+  if (chegou?.checkin_em) {
+    const envio = await processarEnvio(reserva.id, new Date(chegou.checkin_em));
+    return { ok: true, fichaEnviada: envio.ok };
+  }
+  return { ok: true, fichaEnviada: false };
 }
