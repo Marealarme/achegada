@@ -59,6 +59,15 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
     if (docs.has(documento)) return { ok: false, erro: "O mesmo documento aparece duas vezes." };
     docs.add(documento);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(p.nascimento ?? "")) return { ok: false, erro: "Confira as datas de nascimento." };
+    const hojeBr = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+    if (p.nascimento > hojeBr || p.nascimento < "1900-01-01") return { ok: false, erro: "Confira as datas de nascimento." };
+    // o titular (primeira pessoa) é o responsável pela reserva e pelos menores: precisa ter 18 anos ou mais
+    if (pessoas.length === 0) {
+      const [a, m, d] = p.nascimento.split("-").map(Number);
+      const [ha, hm, hd] = hojeBr.split("-").map(Number);
+      if (ha - a - (hm < m || (hm === m && hd < d) ? 1 : 0) < 18)
+        return { ok: false, erro: "O titular da reserva precisa ter 18 anos ou mais. Confira a data de nascimento dele." };
+    }
     if (!ids(GENEROS).includes(p.genero) || !ids(RACAS).includes(p.raca) || !ids(DEFICIENCIA).includes(p.deficiencia))
       return { ok: false, erro: "Complete gênero, cor/raça e deficiência de todos." };
     if (p.genero === "OUTRO" && !txt(p.generoDescricao)) return { ok: false, erro: "Descreva o gênero escolhido como “Outro”." };

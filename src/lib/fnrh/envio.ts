@@ -1,6 +1,6 @@
 import "server-only";
 import { supabaseServico } from "@/lib/supabase";
-import { ErroFnrh, fnrhLigada, registrarHospedagem, type PayloadHospedagem } from "./cliente";
+import { adicionarHospede, ErroFnrh, fnrhLigada, hospedesDaReserva, registrarHospedagem, registrarPessoa, type PayloadHospedagem } from "./cliente";
 
 /**
  * Envia à FNRH a ficha guardada na fila (fnrh_envios) para esta reserva.
@@ -16,17 +16,17 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
   await db.from("reservas").update({ fnrh_status: "enviando", fnrh_erro: null }).eq("id", reservaId);
   try {
     const pacote = normalizar(fila.payload as PayloadHospedagem, reservaId);
+    const avisos: string[] = [];
     let idGoverno: string;
-    let aviso: string | null = null;
     try {
-      ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, pacote));
+      idGoverno = await registrarComPlanoB(fila.pousada_id, pacote, avisos);
     } catch (e) {
-      if (!(e instanceof ErroFnrh) || e.status !== 400 || !/situa[cç][aã]o/i.test(e.message)) throw e;
-      ({ reservaId: idGoverno } = await registrarHospedagem(fila.pousada_id, comoPendente(pacote)));
-      // guarda o motivo da recusa para entendermos por que foi como "pendente" (sem motivo/transporte)
-      aviso = mascarar(`Aviso: ficha aceita como pré-check-in pendente, sem motivo da viagem e transporte. Resposta do governo à versão completa: ${e.message}`).slice(0, 900);
-      console.warn("[FNRH] plano B (pendente):", aviso);
+      // menor de idade com responsável recusado: cria a reserva com os adultos e inclui os menores depois
+      if (!(e instanceof ErroFnrh) || e.status !== 400 || !/respons/i.test(e.message) || !temMenores(pacote)) throw e;
+      idGoverno = await registrarMenoresDepois(fila.pousada_id, pacote, avisos, e.message);
     }
+    const aviso = avisos.length ? mascarar(avisos.join(" | ")).slice(0, 900) : null;
+    if (aviso) console.warn("[FNRH] aviso:", aviso);
     const agora = new Date().toISOString();
     await db.from("reservas").update({ fnrh_reserva_id: idGoverno, fnrh_status: "enviado", fnrh_erro: aviso, fnrh_enviado_em: agora, fnrh_concluida: true }).eq("id", reservaId);
     await db.from("hospedes_reserva").update({ status_fnrh: "concluido" }).eq("reserva_id", reservaId);
@@ -44,12 +44,58 @@ export async function processarEnvio(reservaId: string): Promise<{ ok: boolean; 
 /** Número curto e único da reserva para o governo (o exemplo oficial usa códigos curtos, ex.: "RESERVA005"). */
 export const numeroReserva = (id: string) => "LC" + id.replace(/-/g, "").slice(0, 10).toUpperCase();
 
-/** Ajusta pacotes já guardados na fila ao formato do exemplo oficial da documentação. */
+/**
+ * Ajusta pacotes já guardados na fila ao formato do exemplo oficial da documentação.
+ * O /hospedagem/registrar não aceita PRECHECKIN_REALIZADO (é a situação de quem preencheu pelo link do próprio governo):
+ * a reserva entra como PRECHECKIN_PENDENTE, com motivo e transporte, e vira CHECKIN_REALIZADO quando a recepção marca "Hospedado".
+ */
 function normalizar(p: PayloadHospedagem, reservaId: string): PayloadHospedagem {
   return {
     reserva: { ...p.reserva, numero_reserva: numeroReserva(reservaId) },
-    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({ ...h, situacao_hospede: "PRECHECKIN_REALIZADO" })),
+    dados_hospede: (p.dados_hospede as Record<string, unknown>[]).map((h) => ({ ...h, situacao_hospede: "PRECHECKIN_PENDENTE" })),
   };
+}
+
+const ehRecusa = (e: unknown): e is ErroFnrh => e instanceof ErroFnrh && e.status === 400;
+
+/** Registra; se o governo recusar motivo/transporte nessa situação, manda de novo sem eles (e avisa). */
+async function registrarComPlanoB(pousadaId: string, pacote: PayloadHospedagem, avisos: string[]): Promise<string> {
+  try {
+    return (await registrarHospedagem(pousadaId, pacote)).reservaId;
+  } catch (e) {
+    if (!ehRecusa(e) || !/motivo|transporte|ficha|situa[cç][aã]o/i.test(e.message)) throw e;
+    const id = (await registrarHospedagem(pousadaId, comoPendente(pacote))).reservaId;
+    avisos.push(`Ficha aceita sem motivo da viagem e transporte. Resposta do governo à versão completa: ${e.message}`);
+    return id;
+  }
+}
+
+type Hosp = Record<string, unknown> & { responsavel?: { numero_documento?: string }; dados_pessoais?: Record<string, unknown>; dados_ficha?: Record<string, unknown> };
+const ehMenor = (h: Hosp) => !!h.responsavel?.numero_documento;
+const temMenores = (p: PayloadHospedagem) => (p.dados_hospede as Hosp[]).some(ehMenor);
+
+/** Plano C: cria a reserva só com os adultos e inclui cada menor pelo /pessoas + /reservas/{id}/hospedes, com o titular como responsável. */
+async function registrarMenoresDepois(pousadaId: string, pacote: PayloadHospedagem, avisos: string[], motivoRecusa: string): Promise<string> {
+  const todos = pacote.dados_hospede as Hosp[];
+  const menores = todos.filter(ehMenor);
+  const id = await registrarComPlanoB(pousadaId, { ...pacote, dados_hospede: todos.filter((h) => !ehMenor(h)) }, avisos);
+  try {
+    const registrados = await hospedesDaReserva(pousadaId, id);
+    const titular = registrados.find((r) => r.principal) ?? registrados[0];
+    if (!titular?.hospedeId) throw new ErroFnrh("não achei o titular na reserva do governo");
+    for (const m of menores) {
+      const dp = m.dados_pessoais ?? {};
+      const pessoaId = await registrarPessoa(pousadaId, dp);
+      await adicionarHospede(pousadaId, id, {
+        pessoa_id: pessoaId, is_principal: false, situacao_hospede_id: "PRECHECKIN_PENDENTE", checkin_em: null, checkout_em: null,
+        fnrh: m.dados_ficha ?? { motivo_viagem_id: "", meio_transporte_id: "" }, responsavel_id: titular.hospedeId,
+      });
+    }
+    avisos.push(`Menores incluídos em uma segunda etapa (o governo recusou o responsável no envio único: ${motivoRecusa})`);
+  } catch (e) {
+    avisos.push(`Reserva registrada só com os adultos; ${menores.length} menor(es) não entrou(aram): ${e instanceof Error ? e.message : String(e)}. Inclua na plataforma FNRH.`);
+  }
+  return id;
 }
 
 /** Plano B: situação "pendente" não aceita motivo/transporte, então vão vazios. */
@@ -110,7 +156,7 @@ export function montarPayload(args: {
       const menor = idade(p.nascimento, args.checkIn) < 18;
       return {
         is_principal: i === 0,
-        situacao_hospede: "PRECHECKIN_REALIZADO",
+        situacao_hospede: "PRECHECKIN_PENDENTE",
         check_in_em: "",
         check_out_em: "",
         dados_pessoais: {

@@ -105,6 +105,27 @@ export async function registrarHospedagem(pousadaId: string, payload: PayloadHos
   return { reservaId: id };
 }
 
+/** POST /pessoas — cadastra uma pessoa (usado para incluir menores depois da reserva criada). */
+export async function registrarPessoa(pousadaId: string, pessoa: Record<string, unknown>) {
+  const json = (await chamar(pousadaId, "/pessoas", { method: "POST", body: JSON.stringify({ pessoa }), comCpf: true })) as { pessoa_id?: string; dados?: { pessoa_id?: string } } | null;
+  const id = json?.pessoa_id ?? json?.dados?.pessoa_id;
+  if (!id) throw new ErroFnrh("O governo não devolveu o número da pessoa.");
+  return id;
+}
+
+/** GET /reservas/{id}/hospedes — hóspedes já registrados na reserva do governo. */
+export async function hospedesDaReserva(pousadaId: string, reservaId: string) {
+  const json = (await chamar(pousadaId, `/reservas/${encodeURIComponent(reservaId)}/hospedes`, { method: "GET" })) as
+    | { dados?: { pessoa?: { numero?: string }; hospede?: { hospede_id?: string; responsavel_quarto?: boolean } }[] }
+    | null;
+  return (json?.dados ?? []).map((d) => ({ documento: d.pessoa?.numero ?? "", hospedeId: d.hospede?.hospede_id ?? "", principal: !!d.hospede?.responsavel_quarto }));
+}
+
+/** POST /reservas/{id}/hospedes — inclui uma pessoa já cadastrada na reserva. */
+export async function adicionarHospede(pousadaId: string, reservaId: string, corpo: Record<string, unknown>) {
+  return chamar(pousadaId, `/reservas/${encodeURIComponent(reservaId)}/hospedes`, { method: "POST", body: JSON.stringify(corpo), comCpf: true });
+}
+
 /** POST /reservas/{id}/checkin e /checkout — corpo é texto puro com data/hora ISO em UTC. */
 export async function checkinReserva(pousadaId: string, reservaId: string, quando = new Date()) {
   return chamar(pousadaId, `/reservas/${encodeURIComponent(reservaId)}/checkin`, { method: "POST", body: quando.toISOString(), contentType: "text/plain" });
