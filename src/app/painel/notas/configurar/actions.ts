@@ -79,7 +79,9 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
     codigoTributacaoMunicipio: codMun,
     codigoMunicipio: ibge,
     codigoMunicipioIncidencia: ibge,
-    tipoTributacao: servicoAntes.tipoTributacao ?? 1,
+    // tabela da Digisan: 1 Isento, 2 Imune, 3 Não incidência, 4 Não tributável, 5 Retido,
+    // 6 Tributável dentro do município, 7 Tributável fora. O antigo padrão 1 saía como "Isento ao ISS".
+    tipoTributacao: servicoAntes.tipoTributacao && servicoAntes.tipoTributacao !== 1 ? servicoAntes.tipoTributacao : 6,
     indicadorExigibilidade: servicoAntes.indicadorExigibilidade ?? 1,
     issRetido: servicoAntes.issRetido ?? false,
     aliquotaIss: Math.round(aliquota * 100) / 100,
