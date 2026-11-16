@@ -68,7 +68,12 @@ function agoraBrasilia(): string {
 export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string, idExterno = l.numeroReserva): Record<string, unknown> {
   const h = l.tomador!;
   const total = Math.round((l.total ?? 0) * 100) / 100;
-  const aliquota = typeof cfg.servico.aliquotaIss === "number" ? cfg.servico.aliquotaIss : null;
+  // padrão nacional sem ISS retido: a alíquota NÃO vai na nota (o sistema nacional calcula; para Simples Nacional,
+  // informar dá o erro E0625). No padrão municipal antigo, a alíquota continua indo.
+  const semAliquota = !!cfg.padraoNacional && !cfg.servico.issRetido;
+  const aliquota = !semAliquota && typeof cfg.servico.aliquotaIss === "number" ? cfg.servico.aliquotaIss : null;
+  const servicoFixo: Record<string, unknown> = { ...cfg.servico };
+  if (semAliquota) { delete servicoFixo.aliquotaIss; delete servicoFixo.valorIss; delete servicoFixo.baseCalculo; }
   const tomador: Record<string, unknown> = {
     nome: h.nome,
     tipoPessoa: "FISICA",
@@ -99,7 +104,7 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
     prestador: { cnpj: digitos(cfg.prestadorCnpj) },
     tomador,
     servico: {
-      ...cfg.servico,                              // dados fixos do serviço cadastrado na Digisan
+      ...servicoFixo,                              // dados fixos do serviço cadastrado na Digisan
       descricao: descricaoNota(l, cfg.prefixoDescricao || "Hospedagem"),
       valorServicos: total,                        // ISS já incluído no valor total
       ...(aliquota !== null ? { baseCalculo: total, valorIss: Math.round(total * aliquota) / 100 } : {}),
