@@ -64,6 +64,12 @@ function agoraBrasilia(): string {
   return new Date(Date.now() - 2 * 60_000 - 3 * 3600_000).toISOString().slice(0, 19); // Brasil sem horário de verão: UTC−3
 }
 
+/** Competência = check-out; se o check-out ainda não chegou, hoje (o padrão nacional recusa competência futura). */
+function competenciaAte(checkOut: string): string {
+  const hoje = agoraBrasilia().slice(0, 10);
+  return checkOut > hoje ? hoje : checkOut;
+}
+
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
 export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string, idExterno = l.numeroReserva): Record<string, unknown> {
   const h = l.tomador!;
@@ -73,7 +79,8 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
   const semAliquota = !!cfg.padraoNacional && !cfg.servico.issRetido;
   const aliquota = !semAliquota && typeof cfg.servico.aliquotaIss === "number" ? cfg.servico.aliquotaIss : null;
   const servicoFixo: Record<string, unknown> = { ...cfg.servico };
-  if (semAliquota) { delete servicoFixo.aliquotaIss; delete servicoFixo.valorIss; delete servicoFixo.baseCalculo; }
+  // sem o campo, a Digisan completa com a alíquota do cadastro dela (5%) e a Receita recusa; com 0 ela não informa
+  if (semAliquota) Object.assign(servicoFixo, { aliquotaIss: 0, valorIss: 0, baseCalculo: 0 });
   const tomador: Record<string, unknown> = {
     nome: h.nome,
     tipoPessoa: "FISICA",
@@ -97,7 +104,7 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
   return {
     idExterno,
     emissao: agoraBrasilia(),
-    competencia: l.checkOut,                       // mês do check-out
+    competencia: competenciaAte(l.checkOut),       // data do check-out, nunca depois de hoje (E0015)
     enviarPorEmail: cfg.enviarPorEmail ?? false,
     ...(cfg.padraoNacional !== undefined ? { padraoNacional: cfg.padraoNacional } : {}),
     ...(cfg.naturezaTributacao !== undefined ? { naturezaTributacao: cfg.naturezaTributacao } : {}),
