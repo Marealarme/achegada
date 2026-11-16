@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import { cpfMascarado, dataCurta, noites } from "@/lib/util";
 import Cabecalho from "../Cabecalho";
@@ -108,7 +109,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
                   {cabecalhoAno && <h3 className="historico-ano">{cabecalhoAno}</h3>}
                   <div className="historico-item">
                     <div className="historico-topo">
-                      <b>{r.titular}</b>
+                      <Link href={`/painel/ficha/${r.id}`}><b>{r.titular}</b></Link>
                       <span className={`pill ${st.cls}`}>{st.txt}</span>
                     </div>
                     <span className="muted small">
@@ -132,6 +133,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
                         })}
                       </ul>
                     )}
+                    <Link className="small" href={`/painel/ficha/${r.id}`}>Abrir ficha →</Link>
                   </div>
                 </li>
               );
