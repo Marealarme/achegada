@@ -58,7 +58,11 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
   const temChave = !!(await chaveDigisan(db, s.pousada.id));
   const configurada = temChave && !!cfg?.prestadorCnpj && !!cfg?.servico && !semTabela;
   const dono = s.perfil.papel === "dono";
-  const temAutorizada = (notas ?? []).some((n) => (n as { status: string }).status === "autorizada");
+  const testeDesde = (cfg as { testeDesde?: string } | null)?.testeDesde;
+  const temAutorizada = (notas ?? []).some((n) => {
+    const x = n as { status: string; criada_em: string };
+    return x.status === "autorizada" && (!testeDesde || x.criada_em >= testeDesde);
+  });
   const limite = cfg?.limiteMensal ?? 160;
 
   return (

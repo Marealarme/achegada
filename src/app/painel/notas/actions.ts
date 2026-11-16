@@ -18,7 +18,7 @@ async function contexto() {
   if (!temNotas(s)) throw new Error("O adicional de notas fiscais não está ativo nesta assinatura.");
   const db = supabaseServico(); // notas só são gravadas pelo servidor; tudo filtrado pela pousada da sessão
   const { data } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
-  const cfg = (data?.nfse_config ?? null) as (NfseConfig & { liberada?: boolean; webhookId?: string }) | null;
+  const cfg = (data?.nfse_config ?? null) as (NfseConfig & { liberada?: boolean; webhookId?: string; testeDesde?: string }) | null;
   const k = await chaveDigisan(db, s.pousada.id);
   return { s, db, cfg, chave: k?.chave ?? null, gateway: k?.origem === "gateway" };
 }
@@ -34,7 +34,12 @@ export async function emitirNotas(reservaIds: string[]): Promise<ResultadoEmissa
 
   // fase de teste: até você liberar, só UMA nota pode ser emitida
   if (!cfg.liberada) {
-    const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).not("digisan_id", "is", null).neq("status", "rejeitada"); // rejeitada não gerou nota: pode tentar de novo
+    // conta só as notas desta fase de teste (as autorizadas antes da última mudança na configuração não contam)
+    let q = db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).not("digisan_id", "is", null);
+    q = cfg.testeDesde
+      ? q.neq("status", "rejeitada").neq("status", "cancelada").gte("criada_em", cfg.testeDesde) // rejeitada não gerou nota: pode tentar de novo
+      : q.in("status", ["enviando", "processando", "verificar"]);
+    const { count } = await q;
     if ((count ?? 0) > 0 || ids.length > 1)
       return { ok: false, mensagens: ["Fase de teste: só uma nota pode ser emitida até a primeira ser conferida e a emissão ser liberada."] };
   }

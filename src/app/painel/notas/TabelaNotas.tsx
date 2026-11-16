@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { atualizarStatus, cancelarNota, emitirNotas } from "./actions";
 
 export type LinhaTela = {
@@ -31,6 +31,8 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
   const [codigo, setCodigo] = useState(1);
   const [motivo, setMotivo] = useState("");
   const [msgs, setMsgs] = useState<string[]>([]);
+  const caixaMsgs = useRef<HTMLUListElement>(null);
+  useEffect(() => { if (msgs.length) caixaMsgs.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [msgs]);
   const [pendente, iniciar] = useTransition();
 
   const aptas = linhas.filter(podeEmitirLinha);
@@ -72,7 +74,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
           <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
         </div>
       )}
-      {msgs.length > 0 && <ul className="nf-msgs" role="status">{msgs.map((m, i) => <li key={i}>{m}</li>)}</ul>}
+      {msgs.length > 0 && <ul ref={caixaMsgs} className="nf-msgs" role="status">{msgs.map((m, i) => <li key={i}>{m}</li>)}</ul>}
 
       <div className="nf-tabela-wrap">
         <table className="nf-tabela">

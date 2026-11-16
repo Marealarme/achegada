@@ -91,7 +91,7 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
   };
   // mudou quem emite ou o serviço → nova nota de teste antes de liberar o resto
   const mudouFiscal = antes.prestadorCnpj !== cnpj || estavel(servicoAntes) !== estavel(servico) || !!antes.padraoNacional !== novo.padraoNacional;
-  if (mudouFiscal || !antes.prestadorCnpj) novo.liberada = false;
+  if (mudouFiscal || !antes.prestadorCnpj) Object.assign(novo, { liberada: false, testeDesde: new Date().toISOString() });
   if (chave) delete novo.webhookId; // chave nova → ativar os avisos de novo nesta conta da Digisan
 
   const { error } = await db.from("pousadas").update({ nfse_config: novo }).eq("id", s.pousada.id);
@@ -110,7 +110,9 @@ export async function liberarEmissao(): Promise<void> {
   const { data: p } = await db.from("pousadas").select("nfse_config").eq("id", s.pousada.id).maybeSingle();
   const cfg = p?.nfse_config as Record<string, unknown> | null;
   if (!cfg) return;
-  const { count } = await db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).eq("status", "autorizada");
+  let q = db.from("notas_fiscais").select("id", { count: "exact", head: true }).eq("pousada_id", s.pousada.id).eq("status", "autorizada");
+  if (typeof cfg.testeDesde === "string") q = q.gte("criada_em", cfg.testeDesde); // a nota de teste tem que ser desta fase
+  const { count } = await q;
   if (!count) return; // só libera depois de ao menos uma nota autorizada
   await db.from("pousadas").update({ nfse_config: { ...cfg, liberada: true } }).eq("id", s.pousada.id);
   revalidatePath("/painel/notas");
@@ -170,7 +172,7 @@ export async function cadastrarEmitente(_: string, f: FormData): Promise<string>
     prestadorCnpj: cnpj,
     emitente: { razaoSocial: razao, cadastradoEm: new Date().toISOString(), certificadoEnviadoEm: certificadoEm ?? antes.emitente?.certificadoEnviadoEm ?? null },
   };
-  if (antes.prestadorCnpj !== cnpj) novo.liberada = false;
+  if (antes.prestadorCnpj !== cnpj) Object.assign(novo, { liberada: false, testeDesde: new Date().toISOString() });
   const { error } = await db.from("pousadas").update({ nfse_config: novo }).eq("id", s.pousada.id);
   if (error) return "A Digisan aceitou, mas não foi possível salvar aqui. Tente de novo.";
   revalidatePath("/painel/notas");
