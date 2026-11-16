@@ -41,8 +41,8 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
     .eq("pousada_id", s.pousada.id).in("reserva_id", linhas.length ? linhas.map((l) => l.reservaId) : ["00000000-0000-0000-0000-000000000000"])
     .order("criada_em", { ascending: false });
   const ultima = new Map<string, LinhaTela["nota"]>();
-  for (const n of (notas ?? []) as { id: string; reserva_id: string; status: string; numero: string | null; mensagem: string | null }[])
-    if (!ultima.has(n.reserva_id)) ultima.set(n.reserva_id, { id: n.id, status: n.status, numero: n.numero, mensagem: n.mensagem });
+  for (const n of (notas ?? []) as { id: string; reserva_id: string; status: string; numero: string | null; mensagem: string | null; criada_em: string }[])
+    if (!ultima.has(n.reserva_id)) ultima.set(n.reserva_id, { id: n.id, status: n.status, numero: n.numero, mensagem: n.mensagem, criadaEm: n.criada_em });
 
   const tela: LinhaTela[] = linhas.map((l) => ({
     reservaId: l.reservaId, numeroReserva: l.numeroReserva, titular: l.titular, checkIn: l.checkIn, checkOut: l.checkOut,

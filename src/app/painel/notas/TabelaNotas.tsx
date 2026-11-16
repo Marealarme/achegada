@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { atualizarStatus, cancelarNota, emitirNotas } from "./actions";
 
 export type LinhaTela = {
   reservaId: string; numeroReserva: string; titular: string; checkIn: string; checkOut: string; chale: string; canal: string;
   total: number | null; pendencias: string[];
-  nota: { id: string; status: string; numero: string | null; mensagem: string | null } | null;
+  nota: { id: string; status: string; numero: string | null; mensagem: string | null; criadaEm?: string } | null;
 };
 
 const ROTULO: Record<string, { txt: string; cls: string }> = {
@@ -16,6 +16,13 @@ const ROTULO: Record<string, { txt: string; cls: string }> = {
 const MOTIVOS = [{ c: 1, t: "Erro na emissão" }, { c: 2, t: "Serviço não prestado" }, { c: 4, t: "Duplicidade da nota" }, { c: 3, t: "Erro de assinatura" }, { c: 5, t: "Erro de processamento" }];
 const reais = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBr = (iso: string) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+const EM_ANDAMENTO = ["enviando", "processando", "verificar", "cancelando"];
+/** "0:42" ou "12:05" desde o envio. */
+const decorrido = (desde: string | undefined, agora: number) => {
+  if (!desde) return "";
+  const seg = Math.max(0, Math.floor((agora - new Date(desde).getTime()) / 1000));
+  return `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
+};
 const podeEmitirLinha = (l: LinhaTela) => !l.pendencias.length && (!l.nota || ["rejeitada", "cancelada"].includes(l.nota.status));
 
 export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas: LinhaTela[]; podeEmitir: boolean; faseTeste: boolean }) {
@@ -28,7 +35,22 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
 
   const aptas = linhas.filter(podeEmitirLinha);
   const totalSel = (confirmar ?? []).reduce((s, l) => s + (l.total ?? 0), 0);
-  const emAndamento = linhas.some((l) => l.nota && ["enviando", "processando", "verificar", "cancelando"].includes(l.nota.status));
+  const andamento = linhas.filter((l) => l.nota && EM_ANDAMENTO.includes(l.nota.status));
+  const emAndamento = andamento.length > 0;
+  const maisAntiga = andamento.map((l) => l.nota!.criadaEm).filter(Boolean).sort()[0];
+
+  // relógio de 1 em 1 segundo e consulta à Digisan a cada 10 s enquanto houver nota em processamento
+  const [agora, setAgora] = useState(() => Date.now());
+  const [conferindo, setConferindo] = useState(false);
+  useEffect(() => {
+    if (!emAndamento) return;
+    const relogio = setInterval(() => setAgora(Date.now()), 1000);
+    const consulta = setInterval(async () => {
+      setConferindo(true);
+      try { await atualizarStatus(); } finally { setConferindo(false); }
+    }, 10000);
+    return () => { clearInterval(relogio); clearInterval(consulta); };
+  }, [emAndamento]);
 
   return (
     <>
@@ -39,6 +61,17 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
         </button>
         {emAndamento && <button className="btn" type="button" disabled={pendente} onClick={() => iniciar(() => atualizarStatus())}>{pendente ? "Atualizando…" : "Atualizar status"}</button>}
       </div>
+      {emAndamento && (
+        <div className="nf-andamento" role="status" aria-live="polite"
+          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", margin: "0 0 12px", borderRadius: 8, background: "var(--accent-soft, #D7EBE7)" }}>
+          <span className="nf-girando" aria-hidden="true" style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "nf-gira 0.9s linear infinite", flex: "none" }} />
+          <div className="small">
+            <b>Emitindo {andamento.length} nota{andamento.length > 1 ? "s" : ""}…</b>{maisAntiga && <> há <span className="mono">{decorrido(maisAntiga, agora)}</span></>}
+            <div className="muted">{conferindo ? "Conferindo na Digisan…" : "A página se atualiza sozinha a cada 10 segundos."} Costuma levar de alguns segundos a alguns minutos; pode fechar a página, a nota continua sendo emitida.</div>
+          </div>
+          <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
+        </div>
+      )}
       {msgs.length > 0 && <ul className="nf-msgs" role="status">{msgs.map((m, i) => <li key={i}>{m}</li>)}</ul>}
 
       <div className="nf-tabela-wrap">
@@ -56,7 +89,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
                   <td className="small">{dataBr(l.checkIn)} → {dataBr(l.checkOut)}</td>
                   <td className="num">{l.total ? reais(l.total) : "—"}</td>
                   <td className="small">{l.pendencias.length ? <span className="err">{l.pendencias.join(" / ")}</span> : <span className="pill ok">OK</span>}</td>
-                  <td className="small"><span className={`pill ${st.cls}`}>{st.txt}</span>
+                  <td className="small"><span className={`pill ${st.cls}`}>{st.txt}{l.nota && EM_ANDAMENTO.includes(l.nota.status) && l.nota.criadaEm ? <> · <span className="mono">{decorrido(l.nota.criadaEm, agora)}</span></> : null}</span>
                     {l.nota?.mensagem && <div className={l.nota.status === "rejeitada" ? "err small" : "muted small"}>{l.nota.mensagem}</div>}
                     <div style={{ marginTop: 6 }}>
                       {podeEmitirLinha(l) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>{l.nota ? "Emitir de novo" : "Emitir"}</button>}
