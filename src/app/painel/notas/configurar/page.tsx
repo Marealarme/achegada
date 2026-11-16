@@ -47,7 +47,7 @@ export default async function ConfigurarNotas() {
           <p className="muted small">
             As notas são emitidas pela <b>Digisan</b> na conta da própria pousada. Antes de configurar aqui: contrate a Digisan,
             envie o certificado digital A1 do CNPJ que emite as notas e cadastre o serviço. Depois copie os dados abaixo.
-            Na dúvida sobre os códigos, peça ao seu contador ou copie de uma nota já autorizada pela prefeitura (arquivo XML).
+            Na dúvida sobre os códigos, peça ao seu contador ou copie de uma nota já autorizada (arquivo XML).
           </p>
           )}
 
@@ -148,11 +148,11 @@ export default async function ConfigurarNotas() {
               <div className="field"><label htmlFor="cnpj">CNPJ do prestador</label><input id="cnpj" name="cnpj" inputMode="numeric" defaultValue={v(cfg.prestadorCnpj)} required /></div>
               <div className="field"><label htmlFor="ibge">Código IBGE do município (7 números)</label><input id="ibge" name="ibge" inputMode="numeric" defaultValue={v(sv.codigoMunicipio)} placeholder="ex.: 3550704 (São Sebastião)" required /></div>
             </div>
-            <label className="check"><input name="padrao_nacional" type="checkbox" defaultChecked={!!cfg.padraoNacional} /><span>A prefeitura usa o emissor nacional (padrão nacional da NFS-e)</span></label>
+            <label className="check"><input name="padrao_nacional" type="checkbox" defaultChecked={cfg.padraoNacional ?? true} /><span>Emitir no padrão nacional da NFS-e (sistema nacional da Receita Federal, obrigatório desde 2026)</span></label>
 
             <h3>3. Serviço</h3>
             <div className="grid2">
-              <div className="field"><label htmlFor="item">Item da lista de serviços (LC 116)</label><input id="item" name="item" defaultValue={v(sv.itemListaServicoLC116)} placeholder="ex.: 9.01 hospedagem · 10.05 corretagem" required /></div>
+              <div className="field"><label htmlFor="item">Código do serviço (padrão nacional: 6 números)</label><input id="item" name="item" defaultValue={v(sv.itemListaServicoLC116)} placeholder="ex.: 100501 corretagem · 090101 hospedagem" required /></div>
               <div className="field"><label htmlFor="codigo_municipal">Código de tributação municipal</label><input id="codigo_municipal" name="codigo_municipal" defaultValue={v(sv.codigoTributacaoMunicipio)} required /></div>
             </div>
             <div className="grid2">
@@ -178,7 +178,7 @@ export default async function ConfigurarNotas() {
               <div className="field"><label htmlFor="ciclo">Dia em que o período do plano vira</label><input id="ciclo" name="ciclo" inputMode="numeric" defaultValue={v(cfg.cicloDia ?? 1)} required /></div>
             </div>}
             <label className="check"><input name="enviar_email" type="checkbox" defaultChecked={!!cfg.enviarPorEmail} /><span>A Digisan envia a nota por e-mail ao hóspede</span></label>
-            <label className="check"><input name="telefone_tomador" type="checkbox" defaultChecked={!!cfg.telefoneTomador} /><span>Enviar o telefone do hóspede na nota (algumas prefeituras recusam)</span></label>
+            <label className="check"><input name="telefone_tomador" type="checkbox" defaultChecked={!!cfg.telefoneTomador} /><span>Enviar o telefone do hóspede na nota (pode causar recusa; deixe desmarcado se não precisar)</span></label>
 
             <p className="aviso small">Se você mudar o CNPJ ou os dados do serviço, a emissão volta para a <b>fase de teste</b>: uma nota, conferência do PDF e só então a liberação das demais.</p>
           </Form>

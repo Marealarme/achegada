@@ -29,7 +29,8 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
   const chave = String(f.get("chave") ?? "").trim();
   const cnpj = dig(f, "cnpj");
   const ibge = dig(f, "ibge");
-  const item = txt(f, "item", 10);
+  const nacional = f.get("padrao_nacional") === "on";
+  const item = codigoServico(txt(f, "item", 12), nacional);
   const codMun = dig(f, "codigo_municipal");
   const cnae = dig(f, "cnae");
   const nbs = dig(f, "nbs");
@@ -40,7 +41,10 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
 
   if (cnpj.length !== 14) return "Informe o CNPJ de quem emite a nota (14 números).";
   if (ibge.length !== 7) return "Informe o código IBGE do município da pousada (7 números).";
-  if (!/^\d{1,2}\.\d{2}$/.test(item)) return "Informe o item da lista de serviços no formato 10.05 ou 9.01.";
+  if (nacional ? !/^\d{6}$/.test(item) : !/^\d{1,2}\.\d{2}$/.test(item))
+    return nacional
+      ? "Informe o código de tributação nacional com 6 números (ex.: 100501 para corretagem, 090101 para hospedagem)."
+      : "Informe o item da lista de serviços no formato 10.05 ou 9.01.";
   if (!codMun) return "Informe o código de tributação municipal (está no cadastro do serviço na prefeitura ou na Digisan).";
   if (nbs.length !== 9) return "Informe o código NBS com 9 números (ex.: 110012100).";
   if (!(aliquota > 0 && aliquota <= 5)) return "Informe a alíquota do ISS entre 0,01 e 5.";
@@ -77,7 +81,7 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
   const novo = {
     ...antes,
     prestadorCnpj: cnpj,
-    padraoNacional: f.get("padrao_nacional") === "on",
+    padraoNacional: nacional,
     enviarPorEmail: f.get("enviar_email") === "on",
     telefoneTomador: f.get("telefone_tomador") === "on",
     prefixoDescricao: txt(f, "prefixo", 80) || "Hospedagem",
@@ -171,4 +175,21 @@ export async function cadastrarEmitente(_: string, f: FormData): Promise<string>
   if (error) return "A Digisan aceitou, mas não foi possível salvar aqui. Tente de novo.";
   revalidatePath("/painel/notas");
   return certificadoEm ? "Salvo: empresa cadastrada e certificado enviado. Agora complete o serviço abaixo." : "Salvo: empresa cadastrada. Falta enviar o certificado A1.";
+}
+
+/**
+ * Padrão nacional: o código vai direto no cTribNac, que exige 6 números (item + subitem + desdobro).
+ * Aceita "10.05", "10.05.01", "9.01" ou "100501" e devolve "100501" / "090101".
+ * Fora do padrão nacional, devolve no formato da LC 116 ("10.05").
+ */
+function codigoServico(bruto: string, nacional: boolean): string {
+  const t = bruto.trim();
+  const m = t.match(/^(\d{1,2})\.(\d{2})(?:\.(\d{2}))?$/);
+  if (nacional) {
+    if (m) return m[1].padStart(2, "0") + m[2] + (m[3] ?? "01");
+    return t.replace(/\D/g, "");
+  }
+  if (m) return `${Number(m[1])}.${m[2]}`;
+  const d = t.replace(/\D/g, "");
+  return d.length >= 4 ? `${Number(d.slice(0, 2))}.${d.slice(2, 4)}` : t;
 }

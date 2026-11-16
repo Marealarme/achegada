@@ -75,7 +75,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
         <div className="nf-modal" role="dialog" aria-modal="true" aria-label="Confirmar emissão">
           <div className="nf-caixa">
             <h3>Emitir {confirmar.length} nota(s) fiscal(is)?</h3>
-            <p className="muted small">Cada nota é real e vai para a prefeitura. Confira a lista e o total.</p>
+            <p className="muted small">Cada nota é real e vai para o sistema nacional da NFS-e. Confira a lista e o total.</p>
             <ul className="nf-lista">
               {confirmar.map((l) => <li key={l.reservaId}><span>{l.titular} <span className="muted small">· {l.numeroReserva} · saída {dataBr(l.checkOut)}</span></span><b>{reais(l.total ?? 0)}</b></li>)}
             </ul>
@@ -96,7 +96,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
         <div className="nf-modal" role="dialog" aria-modal="true" aria-label="Cancelar nota">
           <div className="nf-caixa">
             <h3>Cancelar a nota nº {cancelar.nota?.numero} de {cancelar.titular}?</h3>
-            <p className="muted small">O cancelamento vai para a prefeitura e não pode ser desfeito.</p>
+            <p className="muted small">O cancelamento vai para o sistema nacional da NFS-e e não pode ser desfeito.</p>
             <div className="field"><label htmlFor="nf-cod">Motivo</label>
               <select id="nf-cod" value={codigo} onChange={(e) => setCodigo(Number(e.target.value))}>{MOTIVOS.map((m) => <option key={m.c} value={m.c}>{m.t}</option>)}</select>
             </div>

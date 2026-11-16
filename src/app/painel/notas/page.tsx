@@ -109,7 +109,7 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
             <div className="nf-pacote">
               <div>
                 <b>Pacote para a contabilidade</b> · {noPacote} nota(s) de {MESES[m - 1]}
-                <div className="muted small">Arquivo .zip com a planilha do mês (resumo, notas, reservas sem nota) e os PDFs. O XML completo fica no portal da prefeitura.</div>
+                <div className="muted small">Arquivo .zip com a planilha do mês (resumo, notas, reservas sem nota) e os PDFs. O XML completo fica no Emissor Nacional da NFS-e (gov.br/nfse).</div>
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {partes <= 1
