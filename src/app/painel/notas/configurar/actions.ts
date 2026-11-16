@@ -185,6 +185,9 @@ export async function cadastrarEmitente(_: string, f: FormData): Promise<string>
     ...antes,
     prestadorCnpj: cnpj,
     emitente: { razaoSocial: razao, cadastradoEm: new Date().toISOString(), certificadoEnviadoEm: certificadoEm ?? antes.emitente?.certificadoEnviadoEm ?? null },
+    // natureza de tributação da Digisan: 1 = Simples Nacional. Sem ela a Digisan põe a alíquota do município
+    // e o padrão nacional recusa a nota de optante do Simples (E0625).
+    ...(["1", "2", "4"].includes(regime) ? { naturezaTributacao: 1 } : {}),
   };
   if (antes.prestadorCnpj !== cnpj) Object.assign(novo, { liberada: false, testeDesde: new Date().toISOString() });
   const { error } = await db.from("pousadas").update({ nfse_config: novo }).eq("id", s.pousada.id);
