@@ -24,6 +24,8 @@ export default async function ConfigurarNotas() {
   const cfg = (p?.nfse_config ?? {}) as Partial<NfseConfig>;
   const sv = (cfg.servico ?? {}) as Record<string, unknown>;
   const ib = (sv.ibscbs ?? {}) as Record<string, unknown>;
+  const im = (ib.imovel ?? {}) as Record<string, unknown>;
+  const imEnd = (im.endereco ?? {}) as Record<string, unknown>;
   const v = (x: unknown) => (x == null ? "" : String(x));
   const gateway = chave?.origem === "gateway";
   const emitente = ((cfg as { emitente?: { razaoSocial?: string; cadastradoEm?: string; certificadoEnviadoEm?: string | null } }).emitente) ?? null;
@@ -171,6 +173,20 @@ export default async function ConfigurarNotas() {
               <div className="field"><label htmlFor="cclasstrib">Classificação tributária (cClassTrib)</label><input id="cclasstrib" name="cclasstrib" inputMode="numeric" defaultValue={v(ib.codigoClassificacaoTributaria)} placeholder="ex.: 200046" required /></div>
             </div>
             <div className="field"><label htmlFor="indop">Indicador de operação (cIndOp)</label><input id="indop" name="indop" inputMode="numeric" defaultValue={v(ib.codigoIndicadorOperacao)} placeholder="ex.: 020301" required /></div>
+
+            <h4 style={{ margin: "12px 0 4px" }}>Imóvel da hospedagem</h4>
+            <p className="muted small" style={{ margin: "0 0 8px" }}>
+              Obrigatório quando o indicador de operação é de imóvel (020101, 020201, 020202, 020301, 020401). Use o endereço da pousada.
+            </p>
+            <div className="grid2">
+              <div className="field"><label htmlFor="im_cep">CEP</label><input id="im_cep" name="im_cep" inputMode="numeric" defaultValue={v(imEnd.cep)} placeholder="ex.: 11628296" /></div>
+              <div className="field"><label htmlFor="im_uf">UF</label><input id="im_uf" name="im_uf" maxLength={2} defaultValue={v(imEnd.uf)} placeholder="SP" /></div>
+              <div className="field"><label htmlFor="im_log">Rua</label><input id="im_log" name="im_log" defaultValue={v(imEnd.logradouro)} placeholder="ex.: Rua Colombo" /></div>
+              <div className="field"><label htmlFor="im_num">Número</label><input id="im_num" name="im_num" defaultValue={v(imEnd.numero)} placeholder="ex.: 364" /></div>
+              <div className="field"><label htmlFor="im_bairro">Bairro</label><input id="im_bairro" name="im_bairro" defaultValue={v(imEnd.bairro)} placeholder="ex.: Maresias" /></div>
+              <div className="field"><label htmlFor="im_cidade">Cidade</label><input id="im_cidade" name="im_cidade" defaultValue={v((imEnd.municipio as Record<string, unknown> | undefined)?.nome)} placeholder="ex.: São Sebastião" /></div>
+              <div className="field"><label htmlFor="im_insc">Inscrição imobiliária (IPTU, opcional)</label><input id="im_insc" name="im_insc" defaultValue={v(im.inscricaoImobiliaria)} placeholder="ex.: 6209" /></div>
+            </div>
 
             <h3>5. {gateway ? "Opções" : "Plano e opções"}</h3>
             {!gateway && <div className="grid2">

@@ -36,6 +36,13 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
   const nbs = dig(f, "nbs");
   const aliquota = Number(txt(f, "aliquota", 6).replace(",", "."));
   const cst = dig(f, "cst"), cClass = dig(f, "cclasstrib"), indOp = dig(f, "indop");
+  // operação com imóvel: o padrão nacional exige o grupo "imóvel" na nota (erro E0932)
+  const imovelObrigatorio = ["020101", "020201", "020202", "020301", "020401"].includes(indOp);
+  const im = {
+    cep: dig(f, "im_cep"), uf: txt(f, "im_uf", 2).toUpperCase(), logradouro: txt(f, "im_log", 120), numero: txt(f, "im_num", 20),
+    bairro: txt(f, "im_bairro", 80), cidade: txt(f, "im_cidade", 80), insc: txt(f, "im_insc", 40),
+  };
+  const temImovel = !!(im.cep || im.logradouro);
   const gateway = !f.has("limite");
   const limite = gateway ? NOTAS_INCLUSAS : Number(txt(f, "limite", 5)), ciclo = gateway ? 1 : Number(txt(f, "ciclo", 2));
 
@@ -48,6 +55,8 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
   if (!codMun) return "Informe o código de tributação municipal (está no cadastro do serviço na prefeitura ou na Digisan).";
   if (nbs.length !== 9) return "Informe o código NBS com 9 números (ex.: 110012100).";
   if (!(aliquota > 0 && aliquota <= 5)) return "Informe a alíquota do ISS entre 0,01 e 5.";
+  if ((imovelObrigatorio || temImovel) && (im.cep.length !== 8 || im.uf.length !== 2 || !im.logradouro || !im.numero || !im.bairro || !im.cidade))
+    return "Preencha o endereço do imóvel (CEP com 8 números, UF, rua, número, bairro e cidade): o indicador de operação informado é de imóvel e o padrão nacional exige.";
   if (cst.length !== 3 || cClass.length !== 6 || indOp.length !== 6) return "Informe a classificação do IBS/CBS: CST (3 números), classificação tributária (6) e indicador de operação (6).";
   if (!(limite >= 1 && limite <= 100000)) return "Informe quantas notas por mês o plano da Digisan permite.";
   if (!(ciclo >= 1 && ciclo <= 28)) return "Informe o dia (1 a 28) em que o período do plano da Digisan vira.";
@@ -74,7 +83,13 @@ export async function salvarConfigNfse(_: string, f: FormData): Promise<string> 
     indicadorExigibilidade: servicoAntes.indicadorExigibilidade ?? 1,
     issRetido: servicoAntes.issRetido ?? false,
     aliquotaIss: Math.round(aliquota * 100) / 100,
-    ibscbs: { ...((servicoAntes.ibscbs as object) ?? {}), cst, codigoClassificacaoTributaria: cClass, codigoIndicadorOperacao: indOp, tipoOperacao: "1" },
+    ibscbs: {
+      ...((servicoAntes.ibscbs as object) ?? {}), cst, codigoClassificacaoTributaria: cClass, codigoIndicadorOperacao: indOp, tipoOperacao: "1",
+      imovel: temImovel ? {
+        ...(im.insc ? { inscricaoImobiliaria: im.insc } : {}),
+        endereco: { cep: im.cep, uf: im.uf, logradouro: im.logradouro, numero: im.numero, bairro: im.bairro, municipio: { codigoIbge: ibge, nome: im.cidade }, pais: { nome: "Brasil", sigla: "BR", bacen: "1058" } },
+      } : undefined,
+    },
   };
   if (!cnae) delete servico.cnae;
 
