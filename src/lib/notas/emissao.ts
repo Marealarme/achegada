@@ -59,6 +59,11 @@ export async function aplicarRetorno(db: SupabaseClient, notaId: string, dto: Re
 export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: NfseConfig, chave: string, l: LinhaNota, autorId: string | null): Promise<{ ok: boolean; mensagem: string }> {
   if (l.pendencias.length || !l.numeroReserva || !l.total) return { ok: false, mensagem: `${l.titular}: tem pendência (${l.pendencias.join(", ") || "sem valor"})` };
 
+  // nunca emitir duas notas para a mesma reserva: se já existe nota autorizada ou em andamento, para aqui
+  const { count: ativas } = await db.from("notas_fiscais").select("id", { count: "exact", head: true })
+    .eq("pousada_id", pousadaId).eq("reserva_id", l.reservaId).in("status", ["autorizada", "enviando", "processando", "verificar", "cancelando"]);
+  if (ativas) return { ok: false, mensagem: `${l.titular}: esta reserva já tem nota autorizada ou em processamento` };
+
   // a Digisan não aceita repetir o idExterno: cada nova tentativa da mesma reserva vai como "nº-2", "nº-3"…
   const { count: tentativas } = await db.from("notas_fiscais").select("id", { count: "exact", head: true })
     .eq("pousada_id", pousadaId).eq("reserva_id", l.reservaId);

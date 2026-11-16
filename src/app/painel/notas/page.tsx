@@ -41,8 +41,15 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
     .eq("pousada_id", s.pousada.id).in("reserva_id", linhas.length ? linhas.map((l) => l.reservaId) : ["00000000-0000-0000-0000-000000000000"])
     .order("criada_em", { ascending: false });
   const ultima = new Map<string, LinhaTela["nota"]>();
-  for (const n of (notas ?? []) as { id: string; reserva_id: string; status: string; numero: string | null; mensagem: string | null; criada_em: string }[])
-    if (!ultima.has(n.reserva_id)) ultima.set(n.reserva_id, { id: n.id, status: n.status, numero: n.numero, mensagem: n.mensagem, criadaEm: n.criada_em });
+  // a nota que vale para a reserva: a autorizada ou em andamento, se houver (uma tentativa rejeitada depois NÃO pode escondê-la);
+  // senão, a tentativa mais recente
+  const ATIVAS = ["autorizada", "enviando", "processando", "verificar", "cancelando"];
+  for (const n of (notas ?? []) as { id: string; reserva_id: string; status: string; numero: string | null; mensagem: string | null; criada_em: string }[]) {
+    const atual = ultima.get(n.reserva_id);
+    const ativa = ATIVAS.includes(n.status);
+    if (!atual || (ativa && !ATIVAS.includes(atual.status)) || (ativa && n.status === "autorizada" && atual.status !== "autorizada"))
+      ultima.set(n.reserva_id, { id: n.id, status: n.status, numero: n.numero, mensagem: n.mensagem, criadaEm: n.criada_em });
+  }
 
   const tela: LinhaTela[] = linhas.map((l) => ({
     reservaId: l.reservaId, numeroReserva: l.numeroReserva, titular: l.titular, checkIn: l.checkIn, checkOut: l.checkOut,
