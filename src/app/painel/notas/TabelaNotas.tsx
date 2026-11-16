@@ -43,9 +43,9 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
 
       <div className="nf-tabela-wrap">
         <table className="nf-tabela">
-          <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th><th>Nº da nota</th><th>Arquivos</th><th></th></tr></thead>
+          <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th><th>Nº da nota</th><th>Arquivos</th></tr></thead>
           <tbody>
-            {linhas.length === 0 && <tr><td colSpan={9} className="muted">Nenhuma reserva com check-out neste mês.</td></tr>}
+            {linhas.length === 0 && <tr><td colSpan={8} className="muted">Nenhuma reserva com check-out neste mês.</td></tr>}
             {linhas.map((l) => {
               const st = l.nota ? ROTULO[l.nota.status] ?? { txt: l.nota.status, cls: "link" } : { txt: "Não emitida", cls: "link" };
               const comArquivo = l.nota && ["autorizada", "cancelada", "cancelando"].includes(l.nota.status);
@@ -57,13 +57,13 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
                   <td className="num">{l.total ? reais(l.total) : "—"}</td>
                   <td className="small">{l.pendencias.length ? <span className="err">{l.pendencias.join(" / ")}</span> : <span className="pill ok">OK</span>}</td>
                   <td className="small"><span className={`pill ${st.cls}`}>{st.txt}</span>
-                    {l.nota?.mensagem && <div className={l.nota.status === "rejeitada" ? "err small" : "muted small"}>{l.nota.mensagem}</div>}</td>
+                    {l.nota?.mensagem && <div className={l.nota.status === "rejeitada" ? "err small" : "muted small"}>{l.nota.mensagem}</div>}
+                    <div style={{ marginTop: 6 }}>
+                      {podeEmitirLinha(l) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>{l.nota ? "Emitir de novo" : "Emitir"}</button>}
+                      {l.nota?.status === "autorizada" && <button className="btn mini ghost" type="button" disabled={pendente} onClick={() => { setCancelar(l); setCodigo(1); setMotivo(""); }}>Cancelar nota</button>}
+                    </div></td>
                   <td className="mono small">{l.nota?.numero ?? ""}</td>
                   <td className="small">{comArquivo && <><a href={`/painel/notas/${l.nota!.id}/pdf`} target="_blank" rel="noopener noreferrer">PDF</a> · <a href={`/painel/notas/${l.nota!.id}/xml`}>XML</a></>}</td>
-                  <td>
-                    {podeEmitirLinha(l) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>Emitir</button>}
-                    {l.nota?.status === "autorizada" && <button className="btn mini ghost" type="button" disabled={pendente} onClick={() => { setCancelar(l); setCodigo(1); setMotivo(""); }}>Cancelar nota</button>}
-                  </td>
                 </tr>
               );
             })}
