@@ -49,6 +49,14 @@ function linkWhatsApp(telefone: string | null, mensagem: string) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
 }
 
+const temWhatsApp = (t: string | null) => (t ?? "").replace(/\D/g, "").length >= 10 && !(t ?? "").startsWith("+1111");
+
+/** Abre a conversa com o hóspede no WhatsApp, sem mensagem pronta (para falar qualquer coisa). */
+export function FalarWhatsApp({ telefone, mini = false }: { telefone: string | null; mini?: boolean }) {
+  if (!temWhatsApp(telefone)) return null;
+  return <a className={mini ? "btn mini ghost" : "btn"} href={linkWhatsApp(telefone, "").replace(/\?text=$/, "")} target="_blank" rel="noopener noreferrer">Falar no WhatsApp</a>;
+}
+
 export type ItemFila = { id: string; titular: string; unidade: string; chegada: string; telefone: string; canal: string; mensagem: string };
 
 /** Modo fila: envia os links de check-in um atrás do outro. Cada envio continua sendo um clique da recepção
@@ -175,8 +183,9 @@ export function BotoesMensagem({ reservaId, mensagem, telefone }: { reservaId: s
   }
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <a className="btn primary" href={wa} target="_blank" rel="noopener noreferrer" onClick={registrar}>Enviar no WhatsApp</a>
+      <a className="btn primary" href={wa} target="_blank" rel="noopener noreferrer" onClick={registrar}>Enviar ficha no WhatsApp</a>
       <button className="btn" type="button" onClick={copiar}>{copiado ? "Copiado" : "Copiar mensagem"}</button>
+      <FalarWhatsApp telefone={telefone} />
     </div>
   );
 }

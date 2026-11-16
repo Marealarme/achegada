@@ -8,7 +8,7 @@ import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData, primeiro
 import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
-import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
+import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FalarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
 
 export const dynamic = "force-dynamic";
@@ -254,7 +254,12 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                       <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
                       <span className={`pill ${st.cls}`}>{st.txt}{erroFicha ? " · erro FNRH" : ""}</span>
                     </Link>
-                    {!x.pre && !aberta && <div className="item-acoes"><CopiarMensagemCurta reservaId={x.id} texto={curta} /></div>}
+                    {!aberta && (!x.pre || x.telefone) && (
+                      <div className="item-acoes">
+                        {!x.pre && <CopiarMensagemCurta reservaId={x.id} texto={curta} />}
+                        <FalarWhatsApp telefone={x.telefone} mini />
+                      </div>
+                    )}
                     {aberta && detalhe(x)}
                   </div>
                 );
