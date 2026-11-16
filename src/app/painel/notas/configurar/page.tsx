@@ -72,7 +72,7 @@ export default async function ConfigurarNotas() {
                   <div className="field"><label htmlFor="e_telefone">Telefone</label><input id="e_telefone" name="e_telefone" type="tel" /></div>
                 </div>
                 <div className="grid2">
-                  <div className="field"><label htmlFor="e_im">Inscrição municipal</label><input id="e_im" name="e_im" required /></div>
+                  <div className="field"><label htmlFor="e_im">Inscrição municipal (opcional)</label><input id="e_im" name="e_im" /><span className="muted small">Deixe em branco se a nota der o erro E0120 (a cidade não registrou a inscrição no cadastro nacional).</span></div>
                   <div className="field"><label htmlFor="e_ie">Inscrição estadual (se tiver)</label><input id="e_ie" name="e_ie" /></div>
                 </div>
                 <div className="grid2">

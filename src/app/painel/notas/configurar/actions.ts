@@ -147,7 +147,6 @@ export async function cadastrarEmitente(_: string, f: FormData): Promise<string>
   if (cnpj.length !== 14) return "Informe o CNPJ da pousada (14 números).";
   if (razao.length < 3) return "Informe a razão social (como está no cartão CNPJ).";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return "Informe um e-mail válido da empresa.";
-  if (!im) return "Informe a inscrição municipal (está no cadastro da prefeitura; o contador sabe).";
   if (cnae.length !== 7) return "Informe o CNAE principal com 7 números (ex.: 5510801).";
   if (cep.length !== 8 || ibge.length !== 7) return "Informe o CEP (8 números) e o código IBGE do município (7 números).";
   if (!txt(f, "e_logradouro") || !txt(f, "e_numero", 20) || !txt(f, "e_bairro") || !txt(f, "e_municipio", 80) || txt(f, "e_uf", 2).length !== 2)
