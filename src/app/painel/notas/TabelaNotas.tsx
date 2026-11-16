@@ -39,20 +39,16 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
   const totalSel = (confirmar ?? []).reduce((s, l) => s + (l.total ?? 0), 0);
   const andamento = linhas.filter((l) => l.nota && EM_ANDAMENTO.includes(l.nota.status));
   const emAndamento = andamento.length > 0;
-  const maisAntiga = andamento.map((l) => l.nota!.criadaEm).filter(Boolean).sort()[0];
 
   // relógio de 1 em 1 segundo e consulta à Digisan a cada 10 s enquanto houver nota em processamento
   const [agora, setAgora] = useState(() => Date.now());
-  const [conferindo, setConferindo] = useState(false);
+  const [enviando, setEnviando] = useState<{ ids: string[]; desde: string } | null>(null);
   useEffect(() => {
-    if (!emAndamento) return;
+    if (!emAndamento && !enviando) return;
     const relogio = setInterval(() => setAgora(Date.now()), 1000);
-    const consulta = setInterval(async () => {
-      setConferindo(true);
-      try { await atualizarStatus(); } finally { setConferindo(false); }
-    }, 10000);
-    return () => { clearInterval(relogio); clearInterval(consulta); };
-  }, [emAndamento]);
+    const consulta = emAndamento ? setInterval(() => { void atualizarStatus(); }, 10000) : undefined;
+    return () => { clearInterval(relogio); if (consulta) clearInterval(consulta); };
+  }, [emAndamento, enviando]);
 
   return (
     <>
@@ -63,19 +59,9 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
         </button>
         {emAndamento && <button className="btn" type="button" disabled={pendente} onClick={() => iniciar(() => atualizarStatus())}>{pendente ? "Atualizando…" : "Atualizar status"}</button>}
       </div>
-      {emAndamento && (
-        <div className="nf-andamento" role="status" aria-live="polite"
-          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", margin: "0 0 12px", borderRadius: 8, background: "var(--accent-soft, #D7EBE7)" }}>
-          <span className="nf-girando" aria-hidden="true" style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "nf-gira 0.9s linear infinite", flex: "none" }} />
-          <div className="small">
-            <b>Emitindo {andamento.length} nota{andamento.length > 1 ? "s" : ""}…</b>{maisAntiga && <> há <span className="mono">{decorrido(maisAntiga, agora)}</span></>}
-            <div className="muted">{conferindo ? "Conferindo na Digisan…" : "A página se atualiza sozinha a cada 10 segundos."} Costuma levar de alguns segundos a alguns minutos; pode fechar a página, a nota continua sendo emitida.</div>
-          </div>
-          <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
-        </div>
-      )}
       {msgs.length > 0 && <ul ref={caixaMsgs} className="nf-msgs" role="status">{msgs.map((m, i) => <li key={i}>{m}</li>)}</ul>}
 
+      <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
       <div className="nf-tabela-wrap">
         <table className="nf-tabela">
           <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th><th>Nº da nota</th><th>Arquivos</th></tr></thead>
@@ -91,10 +77,22 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
                   <td className="small">{dataBr(l.checkIn)} → {dataBr(l.checkOut)}</td>
                   <td className="num">{l.total ? reais(l.total) : "—"}</td>
                   <td className="small">{l.pendencias.length ? <span className="err">{l.pendencias.join(" / ")}</span> : <span className="pill ok">OK</span>}</td>
-                  <td className="small"><span className={`pill ${st.cls}`}>{st.txt}{l.nota && EM_ANDAMENTO.includes(l.nota.status) && l.nota.criadaEm ? <> · <span className="mono">{decorrido(l.nota.criadaEm, agora)}</span></> : null}</span>
+                  <td className="small">{(() => {
+                    const mandando = enviando?.ids.includes(l.reservaId);
+                    const processando = !mandando && l.nota && EM_ANDAMENTO.includes(l.nota.status);
+                    if (!mandando && !processando) return <span className={`pill ${st.cls}`}>{st.txt}</span>;
+                    const desde = mandando ? enviando!.desde : l.nota!.criadaEm;
+                    return (
+                      <span className="pill pre" role="status" aria-live="polite" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span className="nf-girando" aria-hidden="true" style={{ width: 11, height: 11, borderRadius: "50%", border: "2px solid currentColor", borderTopColor: "transparent", animation: "nf-gira 0.9s linear infinite" }} />
+                        {mandando ? "Enviando" : l.nota!.status === "cancelando" ? "Cancelando" : "Emitindo"}
+                        {desde && <span className="mono">{decorrido(desde, agora)}</span>}
+                      </span>
+                    );
+                  })()}
                     {l.nota?.mensagem && <div className={l.nota.status === "rejeitada" ? "err small" : "muted small"}>{l.nota.mensagem}</div>}
                     <div style={{ marginTop: 6 }}>
-                      {podeEmitirLinha(l) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>{l.nota ? "Emitir de novo" : "Emitir"}</button>}
+                      {podeEmitirLinha(l) && !enviando?.ids.includes(l.reservaId) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>{l.nota ? "Emitir de novo" : "Emitir"}</button>}
                       {l.nota?.status === "autorizada" && <button className="btn mini ghost" type="button" disabled={pendente} onClick={() => { setCancelar(l); setCodigo(1); setMotivo(""); }}>Cancelar nota</button>}
                     </div></td>
                   <td className="mono small">{l.nota?.numero ?? ""}</td>
@@ -118,10 +116,15 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
             {confirmar.length > 25 && <p className="muted small">São emitidas até 25 por vez; clique de novo para as próximas.</p>}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button className="btn" type="button" disabled={pendente} onClick={() => setConfirmar(null)}>Voltar</button>
-              <button className="btn primary" type="button" disabled={pendente} onClick={() => iniciar(async () => {
-                const r = await emitirNotas(confirmar.map((l) => l.reservaId));
-                setMsgs(r.mensagens); setConfirmar(null);
-              })}>{pendente ? "Emitindo…" : `Confirmar e emitir (${reais(totalSel)})`}</button>
+              <button className="btn primary" type="button" disabled={pendente} onClick={() => {
+                const ids = confirmar.map((l) => l.reservaId);
+                setConfirmar(null); setMsgs([]); setAgora(Date.now());
+                setEnviando({ ids, desde: new Date().toISOString() });
+                iniciar(async () => {
+                  try { const r = await emitirNotas(ids); setMsgs(r.mensagens); }
+                  finally { setEnviando(null); }
+                });
+              }}>{pendente ? "Emitindo…" : `Confirmar e emitir (${reais(totalSel)})`}</button>
             </div>
           </div>
         </div>
