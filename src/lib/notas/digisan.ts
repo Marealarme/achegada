@@ -55,12 +55,13 @@ export function descricaoNota(l: LinhaNota, prefixo = "Hospedagem") {
 }
 
 /**
- * Data de emissão: hora de Brasília, 2 minutos no passado, no MESMO formato que a Digisan aceita ("2026-11-16T11:30:00.000Z").
- * A Digisan ignora o fuso e lê os números como hora de Brasília: com a hora UTC, a nota ficava 3 h no futuro (E0008);
- * com "-03:00" no fim, a Digisan devolvia 400 sem explicação. Por isso: números da hora local, formato de sempre.
+ * Data de emissão: hora de Brasília, 2 minutos no passado, sem fuso ("2026-11-16T11:30:00").
+ * A Digisan lê o campo como LocalDateTime (hora de Brasília): com a hora UTC a nota ficava 3 h no futuro (E0008)
+ * e com "-03:00" no fim ela recusa o JSON (400).
  */
 function agoraBrasilia(): string {
-  return new Date(Date.now() - 2 * 60_000 - 3 * 3600_000).toISOString(); // Brasil sem horário de verão: UTC−3
+  // a Digisan lê como LocalDateTime (sem fuso): mandar só "aaaa-mm-ddThh:mm:ss" na hora de Brasília
+  return new Date(Date.now() - 2 * 60_000 - 3 * 3600_000).toISOString().slice(0, 19); // Brasil sem horário de verão: UTC−3
 }
 
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
@@ -164,9 +165,14 @@ export function mensagemErro(r: RespostaDigisan): string {
   const c = r.corpo ?? {};
   const m = c.mensagem ?? c.message ?? c.mensagemRejeicao ?? c.erro ?? c.detail ?? c.title;
   // erros podem vir como lista (["…"]) ou por campo ({ "tomador.cpf": ["…"] }, padrão de validação)
-  const bruto = c.erros ?? c.errors;
+  const bruto = c.mensagens ?? c.erros ?? c.errors;
   const lista = Array.isArray(bruto)
-    ? (bruto as unknown[]).map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join("; ")
+    ? (bruto as unknown[]).map((e) => {
+        if (typeof e === "string") return e;
+        const o = e as { message?: string; mensagem?: string; field?: string | null };
+        const txt = o.message ?? o.mensagem;
+        return txt ? (o.field ? `${o.field}: ${txt}` : txt) : JSON.stringify(e);
+      }).join("; ")
     : bruto && typeof bruto === "object"
       ? Object.entries(bruto as Record<string, unknown>).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join("; ")
       : "";
