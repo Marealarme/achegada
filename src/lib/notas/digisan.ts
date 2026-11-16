@@ -162,9 +162,16 @@ export function mensagemErro(r: RespostaDigisan): string {
   if (r.erro) return r.erro;
   if (r.status === 401 || r.status === 403) return "Chave da Digisan inválida ou sem permissão.";
   const c = r.corpo ?? {};
-  const m = c.mensagem ?? c.message ?? c.mensagemRejeicao ?? c.erro;
-  const lista = Array.isArray(c.erros) ? (c.erros as unknown[]).map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join("; ") : "";
-  return String(m ?? lista ?? `Erro ${r.status} na Digisan`).slice(0, 500) || `Erro ${r.status} na Digisan`;
+  const m = c.mensagem ?? c.message ?? c.mensagemRejeicao ?? c.erro ?? c.detail ?? c.title;
+  // erros podem vir como lista (["…"]) ou por campo ({ "tomador.cpf": ["…"] }, padrão de validação)
+  const bruto = c.erros ?? c.errors;
+  const lista = Array.isArray(bruto)
+    ? (bruto as unknown[]).map((e) => (typeof e === "string" ? e : JSON.stringify(e))).join("; ")
+    : bruto && typeof bruto === "object"
+      ? Object.entries(bruto as Record<string, unknown>).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join("; ")
+      : "";
+  const texto = [m, lista].filter(Boolean).map(String).join(" · ") || (Object.keys(c).length ? JSON.stringify(c) : "");
+  return `Erro ${r.status} na Digisan${texto ? ": " + texto : ""}`.slice(0, 600);
 }
 
 // ---------- Empresas (só conta Gateway): cadastro do emitente e certificado A1 ----------
