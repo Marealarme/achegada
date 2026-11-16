@@ -177,6 +177,9 @@ export async function enviarCheckin(e: CheckinEntrada): Promise<{ ok: true; fich
   }
   if (errPre) return { ok: false, erro: ERRO_SALVAR };
 
+  // card sem WhatsApp (comum em Booking/Airbnb): guarda o celular que o hóspede informou na ficha
+  await db.from("reservas").update({ telefone }).eq("id", reserva.id).is("telefone", null);
+
   // card criado à mão (sem nº de reserva): tenta ligar sozinho à reserva importada da mesma data
   await vincularAposCheckin(db, reserva.pousada_id, reserva.id);
 
