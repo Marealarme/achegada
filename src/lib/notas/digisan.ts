@@ -55,12 +55,12 @@ export function descricaoNota(l: LinhaNota, prefixo = "Hospedagem") {
 }
 
 /**
- * Data de emissão no horário de Brasília com o fuso explícito ("2026-11-16T11:30:00-03:00"), 2 minutos no passado.
- * Em UTC ("…14:32:00.000Z") a Digisan lia como hora local e a nota ficava 3 h no futuro: erro E0008 do padrão nacional.
+ * Data de emissão: hora de Brasília, 2 minutos no passado, no MESMO formato que a Digisan aceita ("2026-11-16T11:30:00.000Z").
+ * A Digisan ignora o fuso e lê os números como hora de Brasília: com a hora UTC, a nota ficava 3 h no futuro (E0008);
+ * com "-03:00" no fim, a Digisan devolvia 400 sem explicação. Por isso: números da hora local, formato de sempre.
  */
 function agoraBrasilia(): string {
-  const d = new Date(Date.now() - 2 * 60_000 - 3 * 3600_000); // Brasil sem horário de verão: UTC−3
-  return d.toISOString().slice(0, 19) + "-03:00";
+  return new Date(Date.now() - 2 * 60_000 - 3 * 3600_000).toISOString(); // Brasil sem horário de verão: UTC−3
 }
 
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
