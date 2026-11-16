@@ -64,7 +64,7 @@ function agoraBrasilia(): string {
 }
 
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
-export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string): Record<string, unknown> {
+export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string, idExterno = l.numeroReserva): Record<string, unknown> {
   const h = l.tomador!;
   const total = Math.round((l.total ?? 0) * 100) / 100;
   const aliquota = typeof cfg.servico.aliquotaIss === "number" ? cfg.servico.aliquotaIss : null;
@@ -89,7 +89,7 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
     if (h.pais_residencia) tomador.endereco = { pais: { sigla: h.pais_residencia } };
   }
   return {
-    idExterno: l.numeroReserva,
+    idExterno,
     emissao: agoraBrasilia(),
     competencia: l.checkOut,                       // mês do check-out
     enviarPorEmail: cfg.enviarPorEmail ?? false,

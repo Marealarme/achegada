@@ -59,15 +59,21 @@ export async function aplicarRetorno(db: SupabaseClient, notaId: string, dto: Re
 export async function emitirReserva(db: SupabaseClient, pousadaId: string, cfg: NfseConfig, chave: string, l: LinhaNota, autorId: string | null): Promise<{ ok: boolean; mensagem: string }> {
   if (l.pendencias.length || !l.numeroReserva || !l.total) return { ok: false, mensagem: `${l.titular}: tem pendência (${l.pendencias.join(", ") || "sem valor"})` };
 
+  // a Digisan não aceita repetir o idExterno: cada nova tentativa da mesma reserva vai como "nº-2", "nº-3"…
+  const { count: tentativas } = await db.from("notas_fiscais").select("id", { count: "exact", head: true })
+    .eq("pousada_id", pousadaId).eq("reserva_id", l.reservaId);
+  const idExterno = tentativas ? `${l.numeroReserva}-${tentativas + 1}` : l.numeroReserva;
+
   const { data: nota, error } = await db.from("notas_fiscais").insert({
-    pousada_id: pousadaId, reserva_id: l.reservaId, id_externo: l.numeroReserva, status: "enviando",
+    pousada_id: pousadaId, reserva_id: l.reservaId, id_externo: idExterno, status: "enviando",
     valor: l.total, competencia: l.checkOut, criada_por: autorId,
   }).select("id").single();
   if (error || !nota) {
     return { ok: false, mensagem: error?.code === "23505" ? `${l.titular}: esta reserva já tem nota emitida ou em processamento` : `${l.titular}: não foi possível registrar a nota` };
   }
 
-  const r = await emitirNfse(chave, montarNfse(l, cfg));
+  const r = await emitirNfse(chave, montarNfse(l, cfg, undefined, idExterno));
+  if (!r.ok) console.error("[notas] Digisan recusou", idExterno, r.status, JSON.stringify(r.corpo ?? r.erro ?? null).slice(0, 1500));
   if (r.ok && r.corpo?.id) {
     await db.from("notas_fiscais").update({ digisan_id: String(r.corpo.id), status: "processando", atualizada_em: new Date().toISOString() }).eq("id", nota.id);
     if (r.corpo.status) await aplicarRetorno(db, nota.id, r.corpo);
