@@ -54,6 +54,15 @@ export function descricaoNota(l: LinhaNota, prefixo = "Hospedagem") {
   return `${prefixo} – ${l.chale || "Chalé"} – ${dataBr(l.checkIn)} a ${dataBr(l.checkOut)} – ${l.noites} ${l.noites === 1 ? "noite" : "noites"} – Reserva ${l.numeroReserva}`;
 }
 
+/**
+ * Data de emissão no horário de Brasília com o fuso explícito ("2026-11-16T11:30:00-03:00"), 2 minutos no passado.
+ * Em UTC ("…14:32:00.000Z") a Digisan lia como hora local e a nota ficava 3 h no futuro: erro E0008 do padrão nacional.
+ */
+function agoraBrasilia(): string {
+  const d = new Date(Date.now() - 2 * 60_000 - 3 * 3600_000); // Brasil sem horário de verão: UTC−3
+  return d.toISOString().slice(0, 19) + "-03:00";
+}
+
 /** Corpo do POST /nfse para uma reserva. Só chamar com a linha sem pendências. */
 export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string): Record<string, unknown> {
   const h = l.tomador!;
@@ -81,7 +90,7 @@ export function montarNfse(l: LinhaNota, cfg: NfseConfig, cidadeTomador?: string
   }
   return {
     idExterno: l.numeroReserva,
-    emissao: new Date().toISOString(),
+    emissao: agoraBrasilia(),
     competencia: l.checkOut,                       // mês do check-out
     enviarPorEmail: cfg.enviarPorEmail ?? false,
     ...(cfg.padraoNacional !== undefined ? { padraoNacional: cfg.padraoNacional } : {}),
