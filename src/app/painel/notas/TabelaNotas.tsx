@@ -76,7 +76,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
                   <td>{l.titular}<div className="muted small">{l.chale}</div></td>
                   <td className="small">{dataBr(l.checkIn)} → {dataBr(l.checkOut)}</td>
                   <td className="num">{l.total ? reais(l.total) : "—"}</td>
-                  <td className="small">{l.pendencias.length ? <span className="err">{l.pendencias.join(" / ")}</span> : <span className="pill ok">OK</span>}</td>
+                  <td className="small">{l.pendencias.length ? <><span className="err">{l.pendencias.join(" / ")}</span>{l.pendencias.some((p) => p === "sem CPF" || p === "sem endereço") && <div><a href={`/painel/ficha/${l.reservaId}`}>Completar dados</a></div>}</> : <span className="pill ok">OK</span>}</td>
                   <td className="small">{(() => {
                     const mandando = enviando?.ids.includes(l.reservaId);
                     const processando = !mandando && l.nota && EM_ANDAMENTO.includes(l.nota.status);

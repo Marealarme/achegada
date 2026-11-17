@@ -6,6 +6,7 @@ import { sessaoEquipe } from "@/lib/sessao";
 import { cpfFormatar, dataCurta, mensagemWhatsApp, noites } from "@/lib/util";
 import Cabecalho from "../../Cabecalho";
 import { BotoesMensagem, EditarWhatsApp } from "../../Componentes";
+import CompletarTomador from "./CompletarTomador";
 
 export const metadata: Metadata = { title: "Ficha do hóspede" };
 export const dynamic = "force-dynamic";
@@ -99,6 +100,18 @@ export default async function FichaHospede({ params }: { params: Promise<{ id: s
               );
             })}
           </ul>
+
+          {(() => {
+            const t = pessoas.find((x) => x.papel === "titular")?.hospedes ?? null;
+            const falta = !t || !t.cpf || !t.cep || !t.logradouro;
+            return (
+              <>
+                <h3>Dados para a nota fiscal</h3>
+                {falta && <p className="aviso small">Falta {!t || !t.cpf ? "CPF" : ""}{(!t || !t.cpf) && (!t?.cep || !t?.logradouro) ? " e " : ""}{!t?.cep || !t?.logradouro ? "endereço" : ""} do titular para emitir a nota.</p>}
+                <CompletarTomador reservaId={r.id} aberto={falta} inicial={{ nome: t?.nome ?? r.titular, cpf: t?.cpf, cep: t?.cep, logradouro: t?.logradouro, numero: t?.numero, complemento: t?.complemento, bairro: t?.bairro, cidade: t?.cidade, uf: t?.uf, email: t?.email }} />
+              </>
+            );
+          })()}
 
           <h3>Link de check-in</h3>
           <p className="small"><a href={link} target="_blank" rel="noopener noreferrer">Abrir a ficha do hóspede</a> (para preencher junto com ele na recepção)</p>
