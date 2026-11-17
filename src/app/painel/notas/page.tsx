@@ -8,6 +8,7 @@ import { chaveDigisan } from "@/lib/notas/chave";
 import { liberarEmissao } from "./configurar/actions";
 import { notasNoPeriodo, periodoPlano } from "@/lib/notas/emissao";
 import { linhasNotas } from "@/lib/notas/linhas";
+import { NOTAS_INCLUSAS } from "@/lib/assinatura";
 import { PDFS_POR_PARTE, STATUS_PACOTE } from "@/lib/notas/status";
 import Cabecalho from "../Cabecalho";
 import TabelaNotas, { type LinhaTela } from "./TabelaNotas";
@@ -62,7 +63,8 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
   ]);
   const partes = Math.ceil((noPacote ?? 0) / PDFS_POR_PARTE);
   const periodo = periodoPlano(cfg?.cicloDia);
-  const temChave = !!(await chaveDigisan(db, s.pousada.id));
+  const chave = await chaveDigisan(db, s.pousada.id);
+  const temChave = !!chave;
   const configurada = temChave && !!cfg?.prestadorCnpj && !!cfg?.servico && !semTabela;
   const dono = s.perfil.papel === "dono";
   const testeDesde = (cfg as { testeDesde?: string } | null)?.testeDesde;
@@ -70,7 +72,8 @@ export default async function Notas({ searchParams }: { searchParams: Promise<{ 
     const x = n as { status: string; criada_em: string };
     return x.status === "autorizada" && (!testeDesde || x.criada_em >= testeDesde);
   });
-  const limite = cfg?.limiteMensal ?? 160;
+  // Gateway: 50 notas incluídas no plano; chave própria: o limite do plano do cliente na Digisan
+  const limite = chave?.origem === "gateway" ? NOTAS_INCLUSAS : cfg?.limiteMensal ?? 160;
 
   return (
     <main className="wrap">
