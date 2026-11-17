@@ -6,7 +6,7 @@ import { completarTomador, type EstadoTomador } from "./actions";
 type Inicial = { nome?: string | null; cpf?: string | null; cep?: string | null; logradouro?: string | null; numero?: string | null; complemento?: string | null; bairro?: string | null; cidade?: string | null; uf?: string | null; email?: string | null };
 
 /** Formulário da equipe para completar CPF e endereço do titular (para emitir a nota). */
-export default function CompletarTomador({ reservaId, inicial, aberto }: { reservaId: string; inicial: Inicial; aberto: boolean }) {
+export default function CompletarTomador({ reservaId, inicial, aberto, rotulo = "Editar CPF e endereço do titular" }: { reservaId: string; inicial: Inicial; aberto: boolean; rotulo?: string }) {
   const [estado, enviar, pendente] = useActionState<EstadoTomador, FormData>(completarTomador, {});
   const [mostrar, setMostrar] = useState(aberto);
   const [v, setV] = useState({
@@ -31,7 +31,7 @@ export default function CompletarTomador({ reservaId, inicial, aberto }: { reser
     } catch { /* sem internet: a pessoa digita */ }
   }
 
-  if (!mostrar) return <button type="button" className="btn ghost" onClick={() => setMostrar(true)}>Editar CPF e endereço do titular</button>;
+  if (!mostrar) return <button type="button" className="btn ghost" onClick={() => setMostrar(true)}>{rotulo}</button>;
 
   const erro = (k: string) => (estado.campo === k ? <span className="err small" role="alert">{estado.erro}</span> : null);
   return (

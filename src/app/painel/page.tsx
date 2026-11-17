@@ -10,6 +10,7 @@ import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
 import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FalarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
+import CompletarTomador from "./ficha/[id]/CompletarTomador";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -101,6 +102,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   if (atual) {
     const r1 = await db.from("reservas").select("referencia_externa, valor_total, valor_pago").eq("id", atual.id).maybeSingle();
     extra = r1.error ? (await db.from("reservas").select("referencia_externa").eq("id", atual.id).maybeSingle()).data : r1.data;
+  }
+  // titular com CPF e endereço (para a nota fiscal), do card aberto
+  type Tit = { nome: string | null; cpf: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; cidade: string | null; uf: string | null; email: string | null };
+  let tomadorNota: Tit | null = null;
+  if (atual) {
+    const rt = await db.from("hospedes_reserva").select("hospedes(nome, cpf, cep, logradouro, numero, complemento, bairro, cidade, uf, email)").eq("reserva_id", atual.id).eq("papel", "titular").maybeSingle();
+    tomadorNota = ((rt.data as { hospedes: Tit | null } | null)?.hospedes) ?? null;
   }
   // respostas das perguntas da pousada (migração 0016)
   let respostasExtras: { pergunta: string; resposta: string }[] = [];
@@ -213,6 +221,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           <p className="empty">O hóspede ainda não fez a pré-chegada. Envie o link pelo WhatsApp; se precisar, reenvie na véspera.</p>
         )}
         {!p && atual.fnrh_erro && <p className="err">{atual.fnrh_erro}</p>}
+        {(() => {
+          const t = tomadorNota;
+          const falta = !t || !t.cpf || !t.cep || !t.logradouro;
+          return (
+            <div style={{ marginTop: 12 }}>
+              {falta && <p className="muted small" style={{ margin: "0 0 6px" }}>Para a nota fiscal falta {!t?.cpf ? "o CPF" : ""}{!t?.cpf && (!t?.cep || !t?.logradouro) ? " e " : ""}{!t?.cep || !t?.logradouro ? "o endereço" : ""} do titular.</p>}
+              <CompletarTomador reservaId={atual.id} aberto={false} rotulo={falta ? "Incluir CPF e endereço do titular" : "Editar CPF e endereço do titular"}
+                inicial={{ nome: t?.nome ?? atual.titular, cpf: t?.cpf, cep: t?.cep, logradouro: t?.logradouro, numero: t?.numero, complemento: t?.complemento, bairro: t?.bairro, cidade: t?.cidade, uf: t?.uf, email: t?.email }} />
+            </div>
+          );
+        })()}
         {!atual.checkin_em && (
           <details className="cancelar">
             <summary>Cancelar esta reserva</summary>

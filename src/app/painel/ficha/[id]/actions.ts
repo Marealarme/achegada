@@ -60,5 +60,6 @@ export async function completarTomador(_: EstadoTomador, f: FormData): Promise<E
 
   revalidatePath(`/painel/ficha/${reservaId}`);
   revalidatePath("/painel/notas");
+  revalidatePath("/painel");
   return { ok: true };
 }
