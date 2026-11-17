@@ -28,7 +28,10 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
   const s = await sessaoEquipe();
   const st = s.pousada.assinatura_status;
   const [plano, vagas] = await Promise.all([planoDisponivel(), vagasFundador()]);
-  const temAssinatura = ["trialing", "active", "past_due", "unpaid", "paused"].includes(st);
+  const { data: pa } = await s.db.from("pousadas").select("stripe_subscription_id").eq("id", s.pousada.id).maybeSingle();
+  // teste liberado à mão, sem cartão: mostra o botão de cadastrar o cartão (a cobrança só começa no fim do teste)
+  const testeSemCartao = st === "trialing" && !(pa as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id;
+  const temAssinatura = ["trialing", "active", "past_due", "unpaid", "paused"].includes(st) && !testeSemCartao;
 
   return (
     <main className="wrap">
@@ -67,7 +70,7 @@ export default async function Assinatura({ searchParams }: { searchParams: Promi
                 <span className="label">{PLANOS[plano].nome}{plano === "fundador" ? ` · restam ${vagas} de ${VAGAS_FUNDADOR} vagas` : ""}</span>
                 <strong>{reais(PLANOS[plano].valor)}<span className="muted small">/mês</span></strong>
                 <span className="muted small">{PLANOS[plano].descricao}</span>
-                <BotaoAcao className="btn primary" aguardando="Abrindo pagamento…">Começar {DIAS_TESTE} dias grátis</BotaoAcao>
+                <BotaoAcao className="btn primary" aguardando="Abrindo pagamento…">{testeSemCartao ? `Cadastrar cartão (cobrança só a partir de ${s.pousada.teste_ate ? dataBR(s.pousada.teste_ate) : "fim do teste"})` : `Começar ${DIAS_TESTE} dias grátis`}</BotaoAcao>
               </form>
             </div>
             <p className="muted small">O cartão é cadastrado na página segura do Stripe; a pousada não vê nem guarda o número. Cancele quando quiser, sem multa.</p>

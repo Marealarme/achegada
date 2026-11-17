@@ -83,7 +83,7 @@ export async function alterarAdicionalNotas(subscriptionId: string, ligar: boole
 }
 
 /** Abre a página de pagamento do Stripe (cartão) com 30 dias grátis na primeira assinatura. */
-export async function criarCheckout(args: { pousadaId: string; nomePousada: string; email: string; plano: Plano; notas: boolean; base: string; jaTeveTeste: boolean; customerId: string | null }) {
+export async function criarCheckout(args: { pousadaId: string; nomePousada: string; email: string; plano: Plano; notas: boolean; base: string; jaTeveTeste: boolean; customerId: string | null; fimTeste?: string | null }) {
   const s = stripe();
   let customer = args.customerId;
   if (!customer) {
@@ -101,7 +101,10 @@ export async function criarCheckout(args: { pousadaId: string; nomePousada: stri
     ],
     payment_method_collection: "always",
     subscription_data: {
-      ...(args.jaTeveTeste ? {} : { trial_period_days: DIAS_TESTE }),
+      // teste liberado à mão (sem cartão): a cobrança só começa no fim desse teste
+      ...(args.fimTeste && new Date(args.fimTeste).getTime() > Date.now() + 2 * 86400_000
+        ? { trial_end: Math.floor(new Date(args.fimTeste).getTime() / 1000) }
+        : args.jaTeveTeste ? {} : { trial_period_days: DIAS_TESTE }),
       metadata: { app: "achegada", pousada_id: args.pousadaId, plano: args.plano },
     },
     metadata: { app: "achegada", pousada_id: args.pousadaId },

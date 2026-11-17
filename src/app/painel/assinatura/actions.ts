@@ -23,6 +23,7 @@ export async function assinar(form: FormData) {
     url = await criarCheckout({
       pousadaId: s.pousada.id, nomePousada: s.pousada.nome, email: s.email, plano, notas: false, base: await base(),
       jaTeveTeste: !!(p?.stripe_subscription_id || p?.teste_ate), customerId: p?.stripe_customer_id ?? null,
+      fimTeste: !p?.stripe_subscription_id ? p?.teste_ate ?? null : null,
     });
   } catch (e) {
     // mostra o motivo na tela em vez da página de erro genérica
