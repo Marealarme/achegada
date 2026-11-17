@@ -36,6 +36,13 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
   const [pendente, iniciar] = useTransition();
 
   const aptas = linhas.filter(podeEmitirLinha);
+  // busca por hóspede, nº da reserva, código do canal, chalé ou nº da nota (sem acento, sem maiúsculas)
+  const [busca, setBusca] = useState("");
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const termo = norm(busca.trim());
+  const visiveis = termo
+    ? linhas.filter((l) => norm([l.titular, l.numeroReserva, l.chale, l.canal, l.nota?.numero ?? ""].join(" ")).includes(termo))
+    : linhas;
   const totalSel = (confirmar ?? []).reduce((s, l) => s + (l.total ?? 0), 0);
   const andamento = linhas.filter((l) => l.nota && EM_ANDAMENTO.includes(l.nota.status));
   const emAndamento = andamento.length > 0;
@@ -59,6 +66,15 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
         </button>
         {emAndamento && <button className="btn" type="button" disabled={pendente} onClick={() => iniciar(() => atualizarStatus())}>{pendente ? "Atualizando…" : "Atualizar status"}</button>}
       </div>
+      <div className="nf-busca" style={{ position: "relative", margin: "0 0 12px" }}>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted, #5B706D)" }}>
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+        </svg>
+        <input type="search" aria-label="Buscar hóspede ou reserva" placeholder="Buscar hóspede, reserva ou nº da nota" value={busca}
+          onChange={(e) => setBusca(e.target.value)} style={{ width: "100%", paddingLeft: 38, minHeight: 44 }} />
+        {termo && <div className="muted small" style={{ marginTop: 4 }}>{visiveis.length} de {linhas.length} reserva(s)</div>}
+      </div>
       {msgs.length > 0 && <ul ref={caixaMsgs} className="nf-msgs" role="status">{msgs.map((m, i) => <li key={i}>{m}</li>)}</ul>}
 
       <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
@@ -67,7 +83,8 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
           <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th></tr></thead>
           <tbody>
             {linhas.length === 0 && <tr><td colSpan={6} className="muted">Nenhuma reserva com check-out neste mês.</td></tr>}
-            {linhas.map((l) => {
+            {linhas.length > 0 && visiveis.length === 0 && <tr><td colSpan={6} className="muted">Nada encontrado para “{busca}”.</td></tr>}
+            {visiveis.map((l) => {
               const st = l.nota ? ROTULO[l.nota.status] ?? { txt: l.nota.status, cls: "link" } : { txt: "Não emitida", cls: "link" };
               const comArquivo = l.nota && ["autorizada", "cancelada", "cancelando"].includes(l.nota.status);
               return (
