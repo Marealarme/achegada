@@ -43,7 +43,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
     const termo = `%${busca.replace(/[%_,()]/g, " ")}%`;
     const filtroHosp = digitos.length >= 4 ? `nome.ilike.${termo},cpf.ilike.%${digitos}%,telefone.ilike.%${digitos}%` : `nome.ilike.${termo}`;
     const [{ data: porTitular }, { data: hosp }] = await Promise.all([
-      db.from("reservas").select("id").ilike("titular", termo).limit(300),
+      db.from("reservas").select("id").or(`titular.ilike.${termo},referencia_externa.ilike.${termo}`).limit(300),
       db.from("hospedes").select("hospedes_reserva(reserva_id)").or(filtroHosp).limit(300),
     ]);
     const viaHospede = (hosp ?? []).flatMap((h) => ((h as { hospedes_reserva: { reserva_id: string }[] }).hospedes_reserva ?? []).map((x) => x.reserva_id));
@@ -80,7 +80,13 @@ export default async function Historico({ searchParams }: { searchParams: Promis
           <form className="historico-busca" method="get">
             <div className="field" style={{ flex: 2, minWidth: 200 }}>
               <label htmlFor="q">Buscar</label>
-              <input id="q" name="q" defaultValue={busca} placeholder="Nome, CPF ou telefone" autoComplete="off" />
+              <div style={{ position: "relative" }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted, #5B706D)" }}>
+                  <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+                </svg>
+                <input id="q" name="q" type="search" defaultValue={busca} placeholder="Nome, CPF, telefone ou nº da reserva" autoComplete="off" style={{ width: "100%", paddingLeft: 38 }} />
+              </div>
             </div>
             <div className="field" style={{ flex: 1, minWidth: 140 }}>
               <label htmlFor="de">de</label>

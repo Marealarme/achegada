@@ -10,6 +10,7 @@ import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
 import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FalarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
 import BotaoAcao from "./BotaoAcao";
+import FiltroLista from "./FiltroLista";
 import CompletarTomador from "./ficha/[id]/CompletarTomador";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +65,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const q = db.from("reservas").select(campos).gte("check_out", hoje).order("check_in", { ascending: true }).limit(200);
     return semCanceladas ? q.is("cancelada_em", null).is("descartada_em", null) : q;
   };
-  const COMPLETO = `${CAMPOS}, origem, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
+  const COMPLETO = `${CAMPOS}, referencia_externa, origem, link_enviado_em, fnrh_status, fnrh_erro, fnrh_reserva_id, checkin_em, checkout_em`;
   const [comFiltro, { data: unidades }] = await Promise.all([
     buscar(COMPLETO, true),
     db.from("unidades").select("id, nome").order("nome"),
@@ -268,7 +269,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar reservas” para subir a planilha com as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (
-            <div className="list">
+            <>
+            <FiltroLista alvo="lista-reservas" placeholder="Buscar hóspede, reserva, chalé ou telefone" />
+            <div className="list" id="lista-reservas">
               {reservas.map((x) => {
                 const st = etapa(x);
                 const erroFicha = x.fnrh_status === "erro" || x.fnrh_status === "enviando";
@@ -276,7 +279,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                 const dt = partesData(x.check_in);
                 const aberta = atual?.id === x.id;
                 return (
-                  <div key={x.id} id={`r-${x.id}`} className={aberta ? "item aberto" : "item"}>
+                  <div key={x.id} id={`r-${x.id}`} className={aberta ? "item aberto" : "item"}
+                    data-busca={[x.titular, x.unidades?.nome, x.telefone, (x as { referencia_externa?: string | null }).referencia_externa, x.origem,
+                      ...(x.hospedes_reserva ?? []).map((h) => `${h.hospedes?.nome ?? ""} ${h.hospedes?.cpf ?? ""}`)].filter(Boolean).join(" ")}>
                     <Link href={aberta ? "/painel" : `/painel?r=${x.id}#r-${x.id}`} className="row" aria-current={aberta} aria-expanded={aberta}>
                       <span className="date"><b>{dt.dia}</b><span>{dt.mes}</span></span>
                       <span className="who"><b>{x.titular}</b><span>{x.unidades?.nome ?? "—"} · {noites(x.check_in, x.check_out)} noites · {x.adultos + x.criancas} hósp.</span></span>
@@ -293,6 +298,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
                 );
               })}
             </div>
+            </>
           )}
         </section>
 
