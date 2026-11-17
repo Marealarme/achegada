@@ -64,9 +64,9 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
       <style>{"@keyframes nf-gira{to{transform:rotate(360deg)}}@media (prefers-reduced-motion: reduce){.nf-girando{animation:none!important}}"}</style>
       <div className="nf-tabela-wrap">
         <table className="nf-tabela">
-          <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th><th>Nº da nota</th><th>Arquivos</th></tr></thead>
+          <thead><tr><th>Reserva</th><th>Titular</th><th>Estadia</th><th className="num">Valor</th><th>Pendência</th><th>Status da nota</th></tr></thead>
           <tbody>
-            {linhas.length === 0 && <tr><td colSpan={8} className="muted">Nenhuma reserva com check-out neste mês.</td></tr>}
+            {linhas.length === 0 && <tr><td colSpan={6} className="muted">Nenhuma reserva com check-out neste mês.</td></tr>}
             {linhas.map((l) => {
               const st = l.nota ? ROTULO[l.nota.status] ?? { txt: l.nota.status, cls: "link" } : { txt: "Não emitida", cls: "link" };
               const comArquivo = l.nota && ["autorizada", "cancelada", "cancelando"].includes(l.nota.status);
@@ -91,12 +91,17 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
                     );
                   })()}
                     {l.nota?.mensagem && <div className={l.nota.status === "rejeitada" ? "err small" : "muted small"}>{l.nota.mensagem}</div>}
+                    {l.nota?.numero && <div className="small" style={{ marginTop: 6 }}>Nota nº <b className="mono">{l.nota.numero}</b></div>}
+                    {comArquivo && (
+                      <div className="small" style={{ marginTop: 4, display: "flex", gap: 12 }}>
+                        <a href={`/painel/notas/${l.nota!.id}/pdf`} target="_blank" rel="noopener noreferrer"><b>Ver PDF</b></a>
+                        <a href={`/painel/notas/${l.nota!.id}/xml`}>XML</a>
+                      </div>
+                    )}
                     <div style={{ marginTop: 6 }}>
                       {podeEmitirLinha(l) && !enviando?.ids.includes(l.reservaId) && <button className="btn mini primary" type="button" disabled={!podeEmitir || pendente} onClick={() => setConfirmar([l])}>{l.nota ? "Emitir de novo" : "Emitir"}</button>}
                       {l.nota?.status === "autorizada" && <button className="btn mini ghost" type="button" disabled={pendente} onClick={() => { setCancelar(l); setCodigo(1); setMotivo(""); }}>Cancelar nota</button>}
                     </div></td>
-                  <td className="mono small">{l.nota?.numero ?? ""}</td>
-                  <td className="small">{comArquivo && <><a href={`/painel/notas/${l.nota!.id}/pdf`} target="_blank" rel="noopener noreferrer">PDF</a> · <a href={`/painel/notas/${l.nota!.id}/xml`}>XML</a></>}</td>
                 </tr>
               );
             })}
