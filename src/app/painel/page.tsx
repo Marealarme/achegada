@@ -86,7 +86,16 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     ...r,
     pre: Array.isArray(r.pre_chegadas) ? r.pre_chegadas[0] ?? null : (r.pre_chegadas as Reserva["pre_chegadas"] & object) ?? null,
   }));
-  const atual = reservas.find((x) => x.id === selecionada);
+  let atual = reservas.find((x) => x.id === selecionada);
+  // reserva já encerrada (ex.: aberta pela tela de Notas): não está na lista de próximas, então busca só ela
+  if (selecionada && !atual) {
+    const r0 = await db.from("reservas").select(COMPLETO).eq("id", selecionada).maybeSingle();
+    const r = (r0.error ? (await db.from("reservas").select(CAMPOS).eq("id", selecionada).maybeSingle()).data : r0.data) as unknown as Reserva | null;
+    if (r) {
+      atual = { ...r, pre: Array.isArray(r.pre_chegadas) ? r.pre_chegadas[0] ?? null : (r.pre_chegadas as Reserva["pre_chegadas"] & object) ?? null };
+      reservas.unshift(atual); // aparece aberta no topo da lista
+    }
+  }
   // nº e valor da reserva do card aberto (só a equipe vê; migração 0011 traz o valor)
   let extra: { referencia_externa?: string | null; valor_total?: number | null; valor_pago?: number | null } | null = null;
   if (atual) {

@@ -72,7 +72,7 @@ export default function TabelaNotas({ linhas, podeEmitir, faseTeste }: { linhas:
               const comArquivo = l.nota && ["autorizada", "cancelada", "cancelando"].includes(l.nota.status);
               return (
                 <tr key={l.reservaId}>
-                  <td className="mono small">{l.numeroReserva || "—"}<div className="muted small">{l.canal}</div></td>
+                  <td className="mono small"><a href={`/painel?r=${l.reservaId}#r-${l.reservaId}`} title="Abrir o cartão da reserva">{l.numeroReserva || "abrir reserva"}</a><div className="muted small">{l.canal}</div></td>
                   <td>{l.titular}<div className="muted small">{l.chale}</div></td>
                   <td className="small">{dataBr(l.checkIn)} → {dataBr(l.checkOut)}</td>
                   <td className="num">{l.total ? reais(l.total) : "—"}</td>
