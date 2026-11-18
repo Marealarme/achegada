@@ -18,7 +18,7 @@ type Pousada = {
 };
 type ReservaHospede = {
   id: string; titular: string; telefone: string | null; check_in: string; check_out: string; adultos: number; criancas: number;
-  pousadas: Pousada; unidades: { nome: string } | null;
+  pousadas: Pousada; unidades: { nome: string } | null; cafe_reserva?: boolean | null;
 };
 
 const CAMPOS_POUSADA = [
@@ -39,7 +39,10 @@ const carregar = cache(async (token: string) => {
       // reserva cancelada no painel: o link deixa de funcionar (sem a migração 0007, a consulta falha e segue normal)
       const canc = await db.from("reservas").select("cancelada_em").eq("token", token).maybeSingle();
       if (!canc.error && (canc.data as { cancelada_em: string | null } | null)?.cancelada_em) return null;
-      return res.data as unknown as ReservaHospede;
+      // café da manhã da reserva (migração 0017); vazio = padrão da pousada
+      const cf = await db.from("reservas").select("cafe_incluso").eq("token", token).maybeSingle();
+      const cafeReserva = cf.error ? null : (cf.data as { cafe_incluso: boolean | null } | null)?.cafe_incluso ?? null;
+      return { ...(res.data as unknown as ReservaHospede), cafe_reserva: cafeReserva };
     }
   }
   return null;
@@ -120,7 +123,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
             cancelamento={linhas(pousada.politica_cancelamento)}
             pousada={pousada.endereco_mapa || `${pousada.nome} ${cidade}`.trim()}
             whatsapp={pousada.whatsapp}
-            cafeIncluso={pousada.cafe_incluso ?? true}
+            cafeIncluso={r.cafe_reserva ?? pousada.cafe_incluso ?? true}
             avisoEarlyLate={pousada.aviso_early_late ?? null}
             perguntas={perguntas}
           />

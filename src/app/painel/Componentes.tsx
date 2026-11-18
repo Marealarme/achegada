@@ -8,7 +8,7 @@ import { corrigirTelefone, criarReserva, importarReservas, marcarLinkEnviado } f
 
 type Unidade = { id: string; nome: string };
 
-export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
+export function NovaReserva({ unidades, cafePadrao = true }: { unidades: Unidade[]; cafePadrao?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const [erro, acao, pendente] = useActionState(criarReserva, "");
   // reserva criada: o painel abre o card novo (?r=…); fecha e limpa o formulário
@@ -32,6 +32,12 @@ export function NovaReserva({ unidades }: { unidades: Unidade[] }) {
       <div className="grid2">
         <div className="field"><label htmlFor="adultos">Adultos</label><input id="adultos" name="adultos" type="number" min={1} max={12} defaultValue={2} /></div>
         <div className="field"><label htmlFor="criancas">Crianças</label><input id="criancas" name="criancas" type="number" min={0} max={12} defaultValue={0} /></div>
+      </div>
+      <div className="field"><label htmlFor="cafe">Café da manhã</label>
+        <select id="cafe" name="cafe" defaultValue={cafePadrao ? "sim" : "nao"}>
+          <option value="sim">Com café da manhã</option>
+          <option value="nao">Sem café da manhã</option>
+        </select>
       </div>
       {erro && <p className="err" role="alert">{erro}</p>}
       <div style={{ display: "flex", gap: 8 }}>

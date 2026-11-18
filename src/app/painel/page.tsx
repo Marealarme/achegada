@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { podeConfigurar, sessaoEquipe } from "@/lib/sessao";
 import Cabecalho from "./Cabecalho";
 import { cpfMascarado, dataCurta, mensagemWhatsApp, noites, partesData, primeiroNome } from "@/lib/util";
-import { cancelarCard, cancelarFicha, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
+import { cancelarCard, cancelarFicha, definirCafe, marcarFnrh, reenviarFnrh, registrarChegada, registrarSaida } from "./actions";
 import { fnrhLigada } from "@/lib/fnrh/cliente";
 import { enderecoImportacao } from "@/lib/emailImportacao";
 import { BaixarHospedes, BotoesMensagem, CopiarMensagemCurta, EditarWhatsApp, FalarWhatsApp, FilaWhatsApp, ImportarReservas, NovaReserva, type ItemFila } from "./Componentes";
@@ -99,11 +99,15 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     }
   }
   // nº e valor da reserva do card aberto (só a equipe vê; migração 0011 traz o valor)
-  let extra: { referencia_externa?: string | null; valor_total?: number | null; valor_pago?: number | null } | null = null;
+  let extra: { referencia_externa?: string | null; valor_total?: number | null; valor_pago?: number | null; cafe_incluso?: boolean | null } | null = null;
   if (atual) {
-    const r1 = await db.from("reservas").select("referencia_externa, valor_total, valor_pago").eq("id", atual.id).maybeSingle();
-    extra = r1.error ? (await db.from("reservas").select("referencia_externa").eq("id", atual.id).maybeSingle()).data : r1.data;
+    const r1 = await db.from("reservas").select("referencia_externa, valor_total, valor_pago, cafe_incluso").eq("id", atual.id).maybeSingle();
+    const r2 = r1.error ? await db.from("reservas").select("referencia_externa, valor_total, valor_pago").eq("id", atual.id).maybeSingle() : r1;
+    extra = r2.error ? (await db.from("reservas").select("referencia_externa").eq("id", atual.id).maybeSingle()).data : r2.data;
   }
+  // café da manhã: padrão da pousada (Configurações), trocável em cada reserva (migração 0017)
+  const { data: pCafe } = await db.from("pousadas").select("cafe_incluso").eq("id", sessao.pousada.id).maybeSingle();
+  const cafePadrao = (pCafe as { cafe_incluso?: boolean | null } | null)?.cafe_incluso ?? true;
   // titular com CPF e endereço (para a nota fiscal), do card aberto
   type Tit = { nome: string | null; cpf: string | null; cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; cidade: string | null; uf: string | null; email: string | null };
   let tomadorNota: Tit | null = null;
@@ -149,6 +153,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           {extra?.referencia_externa && !extra.referencia_externa.startsWith("PL-") && <><dt>Nº da reserva</dt><dd className="mono">{extra.referencia_externa}</dd></>}
           {extra?.valor_total != null && <><dt>Valor</dt><dd>{reais(extra.valor_total)}{extra.valor_pago != null ? ` · pago ${reais(extra.valor_pago)}` : ""}</dd></>}
           <dt>WhatsApp</dt><dd><EditarWhatsApp reservaId={atual.id} telefone={atual.telefone} /></dd>
+          {extra && (() => {
+            const comCafe = extra.cafe_incluso ?? cafePadrao;
+            return <><dt>Café da manhã</dt><dd>
+              <form action={definirCafe} style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input type="hidden" name="id" value={atual.id} />
+                <input type="hidden" name="cafe" value={comCafe ? "nao" : "sim"} />
+                <span>{comCafe ? "Com café" : "Sem café"}</span>
+                <button className="btn mini ghost" type="submit">{comCafe ? "Mudar para sem café" : "Mudar para com café"}</button>
+              </form>
+            </dd></>;
+          })()}
         </dl>
         <div className="field">
           <span className="label">Mensagem para o hóspede</span>
@@ -265,7 +280,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
       )}
       <div className="desk unica">
         <section className="panel" aria-label="Chegadas">
-          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas porEmail={porEmail} /><NovaReserva unidades={unidades ?? []} /></div></div>
+          <div className="panel-head"><h2>Próximas chegadas</h2><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><FilaWhatsApp itens={fila} />{podeConfigurar(sessao) && <BaixarHospedes />}<ImportarReservas porEmail={porEmail} /><NovaReserva unidades={unidades ?? []} cafePadrao={cafePadrao} /></div></div>
           {reservas.length === 0 ? (
             <p className="empty">Nenhuma reserva ainda. Use “Importar reservas” para subir a planilha com as próximas reservas, ou “+ Nova reserva” para criar uma.</p>
           ) : (

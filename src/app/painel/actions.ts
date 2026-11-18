@@ -25,6 +25,7 @@ export async function criarReserva(_: string, form: FormData): Promise<string> {
   const checkOut = String(form.get("check_out") ?? "");
   const adultos = Number(form.get("adultos") ?? 2);
   const criancas = Number(form.get("criancas") ?? 0);
+  const cafe = String(form.get("cafe") ?? ""); // "" = padrão da pousada, "sim", "nao"
 
   if (titular.length < 3) return "Informe o nome do titular.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut) || checkOut <= checkIn)
@@ -42,6 +43,7 @@ export async function criarReserva(_: string, form: FormData): Promise<string> {
       check_out: checkOut,
       adultos,
       criancas,
+      ...(cafe === "sim" ? { cafe_incluso: true } : cafe === "nao" ? { cafe_incluso: false } : {}),
       token: randomBytes(12).toString("hex"),
       criado_por: auth.user.id,
     })
@@ -51,6 +53,15 @@ export async function criarReserva(_: string, form: FormData): Promise<string> {
 
   revalidatePath("/painel");
   redirect(`/painel?r=${data.id}#r-${data.id}`);
+}
+
+/** Café da manhã da reserva: "sim", "nao" ou "" (volta ao padrão da pousada). */
+export async function definirCafe(form: FormData) {
+  const id = String(form.get("id") ?? "");
+  const v = String(form.get("cafe") ?? "");
+  const db = await supabaseEquipe(); // RLS: só reservas da própria pousada
+  await db.from("reservas").update({ cafe_incluso: v === "sim" ? true : v === "nao" ? false : null }).eq("id", id);
+  revalidatePath("/painel");
 }
 
 export async function marcarFnrh(form: FormData) {
