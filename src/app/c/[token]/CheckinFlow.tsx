@@ -323,11 +323,14 @@ export default function CheckinFlow(p: Props) {
               <label htmlFor="motivo">Motivo da viagem</label>
               <select id="motivo" value={motivo} onChange={(ev) => setMotivo(ev.target.value)}><Opcoes lista={MOTIVOS_VIAGEM} /></select>
             </div>
+            {/* pousada sem termo pet = não aceita pets: a opção nem aparece */}
+            {p.termoPet.length > 0 && (
             <label className="check">
               <input id="pet-tem" type="checkbox" checked={pet.tem} onChange={(ev) => setPet({ ...pet, tem: ev.target.checked })} />
               <span><b>Vou levar meu pet</b><br /><span className="muted">A pousada é pet friendly.</span></span>
             </label>
-            {pet.tem && (
+            )}
+            {pet.tem && p.termoPet.length > 0 && (
               <div className="card-g">
                 <div className="field">
                   <label htmlFor="pet-nome">Nome do pet</label>
