@@ -157,7 +157,7 @@ export async function cadastrarEmitente(_: string, f: FormData): Promise<string>
 
   const empresa = {
     cnpj, razaoSocial: razao, email, telefone: dig(f, "e_telefone"), cnaePrincipal: cnae,
-    inscricaoEstadual: txt(f, "e_ie", 30), inscricaoMunicipal: im,
+    inscricaoEstadual: txt(f, "e_ie", 30) || "ISENTO", inscricaoMunicipal: im, // prestador de serviço sem IE: a Digisan não aceita vazio
     optanteSimples: regime === "1" || regime === "2", mei: regime === "4",
     codigoRegimeTributario: regime, codigoRegimeTributarioEspecial: especial || "0",
     endereco: {

@@ -73,7 +73,7 @@ export default async function ConfigurarNotas() {
                 </div>
                 <div className="grid2">
                   <div className="field"><label htmlFor="e_im">Inscrição municipal (opcional)</label><input id="e_im" name="e_im" /><span className="muted small">Deixe em branco se a nota der o erro E0120 (a cidade não registrou a inscrição no cadastro nacional).</span></div>
-                  <div className="field"><label htmlFor="e_ie">Inscrição estadual (se tiver)</label><input id="e_ie" name="e_ie" /></div>
+                  <div className="field"><label htmlFor="e_ie">Inscrição estadual (se não tiver, deixe vazio: vai como ISENTO)</label><input id="e_ie" name="e_ie" placeholder="ISENTO" /></div>
                 </div>
                 <div className="grid2">
                   <div className="field"><label htmlFor="e_cnae">CNAE principal (7 números)</label><input id="e_cnae" name="e_cnae" inputMode="numeric" placeholder="ex.: 5510801" required /></div>
