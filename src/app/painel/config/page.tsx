@@ -100,7 +100,8 @@ export default async function Config() {
               <li>Volte aqui e preencha abaixo: usuário, chave, o <b>CPF do responsável</b> e o ambiente <b>Oficial</b>. Clique em “Salvar chave da FNRH”.</li>
               <li>Pronto. No próximo check-in online, o card da reserva mostra <b>“Ficha enviada”</b>. Se aparecer um erro, o motivo do governo aparece no card.</li>
             </ol>
-            <p className="muted small">Dúvidas? Fale com o suporte pelo WhatsApp (19) 99759-4522.</p>
+            <p className="muted small"><b>Deu “sem permissão” ou não acha o menu da chave?</b> Isso é com o governo: escreva para o suporte da FNRH Digital, <a href="mailto:fnrhdigital@turismo.gov.br">fnrhdigital@turismo.gov.br</a>, com o CNPJ da pousada, o nº do Cadastur e o CPF do responsável (e um print da tela).</p>
+            <p className="muted small">Dúvidas sobre o A Chegada? Fale com o nosso suporte pelo WhatsApp (19) 99759-4522.</p>
           </details>
           {seg?.fnrh_usuario ? (
             <p className="ok">Chave cadastrada (usuário {seg.fnrh_usuario}, ambiente {seg.fnrh_ambiente === "homologacao" ? "de teste" : "oficial"}). Para trocar, preencha de novo.</p>
